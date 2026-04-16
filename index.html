@@ -1,0 +1,3536 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RAM PRAKASH INTERIORS - Management Portal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+      /* --- STYLING --- */
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #f4f7f6;
+        margin: 0;
+        padding: 20px;
+        color: #333;
+      }
+
+      /* Global Login Overlay */
+      #globalAuthOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+
+      .auth-card {
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        text-align: center;
+        width: 320px;
+      }
+
+      .auth-card h2 {
+        margin-bottom: 20px;
+        color: #2c3e50;
+      }
+
+      .auth-card select,
+      .auth-card input {
+        width: 100%;
+        padding: 12px;
+        margin: 10px 0;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        box-sizing: border-box;
+      }
+
+      .btn-login {
+        background: #1abc9c;
+        color: white;
+        border: none;
+        padding: 12px;
+        width: 100%;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 1em;
+      }
+
+      /* Main Content Container (Hidden by default) */
+      #mainAppContent {
+        display: none;
+      }
+
+      .header-title {
+        text-align: center;
+        color: #1f2d3d;
+        margin-bottom: 24px;
+        text-transform: uppercase;
+        letter-spacing: 6px;
+        font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        text-shadow:
+          0 2px 0 rgba(255, 255, 255, 0.9),
+          0 4px 12px rgba(44, 62, 80, 0.18);
+      }
+
+      nav {
+        background: #2c3e50;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      nav button {
+        background: #34495e;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: 0.3s;
+        font-weight: bold;
+      }
+
+      nav button:hover {
+        background: #1abc9c;
+      }
+
+      .admin-nav {
+        background: #e67e22 !important;
+        display: none;
+      }
+
+      /* Hidden by default */
+      .logout-nav {
+        background: #c0392b !important;
+      }
+
+      .page {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: none;
+        min-height: 400px;
+      }
+
+      h1,
+      h2 {
+        color: #2c3e50;
+        border-bottom: 2px solid #1abc9c;
+        padding-bottom: 10px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        border: 1px solid #ddd;
+        text-align: left;
+      }
+
+      th {
+        background-color: #2c3e50;
+        color: white;
+      }
+
+      tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+
+      .project-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .project-box {
+        background: #fff;
+        padding: 15px;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        border-top: 4px solid #1abc9c;
+      }
+
+      .box-upcoming {
+        border-top-color: #f39c12;
+      }
+
+      .box-completed {
+        border-top-color: #7f8c8d;
+      }
+
+      /* Admin Forms */
+      .admin-form {
+        background: #f9f9f9;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+      }
+
+      .admin-form input,
+      .admin-form select {
+        padding: 8px;
+        margin: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+
+      .btn-add {
+        background: #27ae60;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+
+      .btn-del {
+        background: #c0392b;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+
+      .btn-status {
+        background: #2980b9;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 0.8em;
+      }
+
+      .btn-edit {
+        background: #f39c12;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 0.8em;
+      }
+
+      .report-controls {
+        background: #fdfdfd;
+        padding: 15px;
+        border: 1px solid #1abc9c;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .btn-pdf {
+        background: #e74c3c;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+
+      .btn-pdf:hover {
+        background: #c0392b;
+      }
+
+      /* Document Display Styles */
+      .emp-docs {
+        display: flex;
+        gap: 20px;
+        margin-top: 15px;
+        flex-wrap: wrap;
+      }
+
+      .doc-item {
+        text-align: center;
+      }
+
+      .doc-item img {
+        width: 120px;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 2px solid #ddd;
+        cursor: pointer;
+      }
+
+      .profile-header {
+        display: flex;
+        gap: 25px;
+        align-items: center;
+      }
+
+      .main-profile-img {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #1abc9c;
+      }
+
+      /* Secondary Password Overlay (for sensitive sections) */
+      #loginOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(44, 62, 80, 0.95);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+
+      .login-box {
+        background: white;
+        padding: 40px;
+        border-radius: 10px;
+        text-align: center;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #7f8c8d;
+        font-style: italic;
+      }
+
+      .wage-input {
+        width: 80px;
+        padding: 5px;
+        border: 1px solid #1abc9c;
+        border-radius: 4px;
+      }
+
+      /* New Time Input Styling */
+      .time-input {
+        width: 110px;
+        padding: 4px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+
+      /* Project Money Styling */
+      .money-tag {
+        font-size: 0.85em;
+        margin-top: 5px;
+        color: #555;
+        line-height: 1.4;
+      }
+
+      .money-left {
+        color: #c0392b;
+        font-weight: bold;
+      }
+
+      /* Inline Edit Styles */
+      .edit-input-sm {
+        width: 100px;
+        padding: 4px;
+        border: 1px solid #f39c12;
+        border-radius: 4px;
+        font-size: 0.85em;
+        margin-bottom: 2px;
+      }
+
+      .btn-save-sm {
+        background: #27ae60;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        cursor: pointer;
+      }
+
+      .project-report-cell {
+        min-width: 420px;
+        line-height: 1.5;
+      }
+
+      .project-ledger-list {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+
+      .project-ledger-list li {
+        margin-bottom: 3px;
+      }
+
+      .btn-print {
+        background: #8e44ad;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 0.8em;
+      }
+
+      .btn-entry {
+        background: #16a085;
+        color: white;
+        border: none;
+        padding: 5px 10px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 0.8em;
+      }
+
+      .project-form-section {
+        margin-top: 18px;
+        padding-top: 12px;
+        border-top: 1px solid #d7dcde;
+      }
+
+      .project-form-section h4 {
+        margin: 0 0 10px;
+        color: #2c3e50;
+      }
+
+      .payment-editor-group {
+        margin-bottom: 16px;
+      }
+
+      .payment-editor-group h5 {
+        margin: 0 0 8px;
+        color: #34495e;
+        font-size: 0.95em;
+      }
+
+      .payment-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .payment-row input,
+      .payment-row select {
+        margin: 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="globalAuthOverlay">
+      <div class="auth-card">
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/3064/3064155.png"
+          width="60"
+          alt="Lock"
+        />
+        <h2>Portal Access</h2>
+        <select id="userRole">
+          <option value="CEO">CEO</option>
+          <option value="Administrator">Administrator</option>
+          <option value="Supervisor">Supervisor</option>
+        </select>
+        <input
+          type="password"
+          id="globalPassword"
+          placeholder="Enter Password"
+        />
+        <button class="btn-login" onclick="handleGlobalLogin()">
+          Unlock System
+        </button>
+        <p id="loginError" style="color: red; font-size: 0.8em; display: none">
+          Invalid credentials!
+        </p>
+      </div>
+    </div>
+
+    <div id="mainAppContent">
+      <h1 class="header-title">RAM PRAKASH INTERIORS</h1>
+
+      <nav>
+        <button onclick="showPage('page1')">Daily Attendance</button>
+        <button onclick="showPage('page3')">Projects Dashboard</button>
+        <button onclick="showPage('pageExpense')">Expense Tracker</button>
+        <button onclick="showPage('pageMaterials')">Materials</button>
+        <button class="admin-nav" id="adminNavBtn" onclick="checkAdminAuth()">
+          Admin Panel
+        </button>
+        <button class="logout-nav" onclick="logout()">Logout</button>
+      </nav>
+
+      <div id="loginOverlay">
+        <div class="login-box">
+          <h2>Admin Verification</h2>
+          <input
+            type="password"
+            id="adminPassword"
+            placeholder="Confirm Admin Password"
+          />
+          <br /><br />
+          <button class="btn-add" onclick="login()">Login</button>
+          <button class="btn-del" onclick="closeLogin()">Cancel</button>
+        </div>
+      </div>
+
+      <section id="page1" class="page" style="display: block">
+        <h1>Daily Attendance List - <span id="currentDate"></span></h1>
+        <div id="attendanceContainer">
+          <table id="attendanceTable">
+            <thead>
+              <tr>
+                <th>Emp ID</th>
+                <th>Employee Details</th>
+                <th>Status</th>
+                <th>Entry Time</th>
+                <th>Exit Time</th>
+                <th>Manual Pocket Money Entry (₹)</th>
+                <th>Current Project</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="employeeListBody"></tbody>
+          </table>
+          <div style="margin-top: 20px; text-align: right">
+            <button class="btn-add" onclick="saveAttendance()">
+              Save & Lock Today's Attendance
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="page2" class="page">
+        <button
+          style="
+            background: #7f8c8d;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+          "
+          onclick="showPage('page1')"
+        >
+          ← Back to List
+        </button>
+        <div id="personalPortalContent"></div>
+      </section>
+
+      <section id="page3" class="page">
+        <h1>Project Overview</h1>
+        <div class="project-grid" id="projectDashboardGrid">
+          <div class="project-box">
+            <h3>🚀 Running</h3>
+            <div id="listRunning"></div>
+          </div>
+          <div class="project-box box-upcoming">
+            <h3>📅 Upcoming</h3>
+            <div id="listUpcoming"></div>
+          </div>
+          <div class="project-box box-completed">
+            <h3>✅ Completed</h3>
+            <div id="listCompleted"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="page4" class="page">
+        <h1>Admin Control Center</h1>
+
+        <div class="project-grid">
+          <div class="admin-form" id="projectFormContainer">
+            <h3 id="projectFormTitle">Create New Project</h3>
+            <input type="hidden" id="editProjectOriginalName" />
+            <input type="text" id="newProjInvoice" placeholder="Project No." />
+            <input type="text" id="newProjCompany" placeholder="Company Name" />
+            <input type="text" id="newProjectName" placeholder="Project Name" />
+            <input
+              type="date"
+              id="newProjGenDate"
+              style="display: none"
+              placeholder="Generated Date"
+            />
+            <input
+              type="date"
+              id="newProjPayDate"
+              placeholder="Payment Date"
+              style="display: none"
+            />
+            <select id="newProjPayMode" style="display: none">
+              <option value="">Select Payment Mode</option>
+              <option value="Cash">Cash</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="UPI">UPI</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+            <input
+              type="number"
+              id="newProjTotal"
+              style="display: none"
+              placeholder="Total Amount (₹)"
+            />
+            <input
+              type="number"
+              id="newProjReceived"
+              style="display: none"
+              placeholder="Amount Received (₹)"
+            />
+            <select id="newProjectStatus">
+              <option value="upcoming">Upcoming</option>
+              <option value="running">Running</option>
+              <option value="completed">Completed</option>
+            </select>
+            <div class="project-form-section">
+              <h4>Payment Details</h4>
+              <div class="payment-editor-group">
+                <h5>Payment Generated</h5>
+                <div id="generatedPaymentsEditor"></div>
+                <button
+                  type="button"
+                  class="btn-add"
+                  style="background: #16a085"
+                  onclick="appendProjectPaymentRow('generated')"
+                >
+                  Add Generated Payment
+                </button>
+              </div>
+              <div class="payment-editor-group">
+                <h5>Payment Received</h5>
+                <div id="receivedPaymentsEditor"></div>
+                <button
+                  type="button"
+                  class="btn-add"
+                  style="background: #2980b9"
+                  onclick="appendProjectPaymentRow('received')"
+                >
+                  Add Received Payment
+                </button>
+              </div>
+            </div>
+            <button
+              class="btn-add"
+              id="projectSubmitBtn"
+              onclick="addProject()"
+            >
+              Add Project
+            </button>
+            <button
+              class="btn-del"
+              id="projectCancelBtn"
+              style="display: none"
+              onclick="cancelProjectEdit()"
+            >
+              Cancel Edit
+            </button>
+          </div>
+
+          <div class="admin-form" id="employeeFormContainer">
+            <h3 id="employeeFormTitle">Register New Employee</h3>
+            <input type="hidden" id="editEmployeeOriginalId" />
+            <input type="text" id="newEmpId" placeholder="Manual Employee ID" />
+            <input type="text" id="newEmpName" placeholder="Name" />
+            <input type="number" id="newEmpAge" placeholder="Age" />
+            <input type="text" id="newEmpContact" placeholder="Contact" />
+            <input
+              type="text"
+              id="newEmpAccount"
+              placeholder="Bank Account No."
+            />
+            <input
+              type="text"
+              id="newEmpBankName"
+              placeholder="Account Holder Name"
+            />
+            <input type="text" id="newEmpIFSC" placeholder="IFSC Code" />
+            <div style="margin: 10px 5px; font-size: 0.9em">
+              <label>Employee Photo:</label><br />
+              <input
+                type="file"
+                id="newEmpPhoto"
+                accept="image/*"
+              /><br /><br />
+              <label>Aadhar Card Photo:</label><br />
+              <input type="file" id="newEmpAadhar" accept="image/*" />
+            </div>
+            <button
+              class="btn-add"
+              id="employeeSubmitBtn"
+              onclick="addEmployee()"
+            >
+              Add Employee
+            </button>
+            <button
+              class="btn-del"
+              id="employeeCancelBtn"
+              style="display: none"
+              onclick="cancelEmployeeEdit()"
+            >
+              Cancel Edit
+            </button>
+          </div>
+        </div>
+
+        <div class="admin-form">
+          <h3>Manual Attendance/Pocket Money Correction</h3>
+          <select id="adminManualEmp">
+            <option value="">Select Employee</option>
+          </select>
+          <input type="date" id="adminManualDate" />
+          <select id="adminManualStatus">
+            <option value="Present">Present</option>
+            <option value="Absent">Absent</option>
+            <option value="Leave">Leave</option>
+          </select>
+          <label>Entry:</label>
+          <input type="time" id="adminManualEntryTime" value="09:00" />
+          <label>Exit:</label>
+          <input type="time" id="adminManualExitTime" value="18:00" />
+          <input
+            type="number"
+            id="adminManualWage"
+            placeholder="Pocket Money Amount (₹)"
+          />
+          <button
+            class="btn-add"
+            style="background: #2980b9"
+            onclick="adminManualEntry()"
+          >
+            Update History
+          </button>
+        </div>
+
+        <div class="admin-form">
+          <h3>Project Financial & Status Management</h3>
+          <table style="font-size: 0.85em">
+            <thead>
+              <tr>
+                <th>Integrated Project Report</th>
+                <th>Payment Status</th>
+                <th>Project Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminProjectListBody"></tbody>
+          </table>
+        </div>
+
+        <div class="admin-form">
+          <h3>Employee Database</h3>
+          <table style="font-size: 0.9em">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Photo</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Contact</th>
+                <th>Bank Details</th>
+                <th>Project</th>
+                <th>Aadhar Card</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminEmployeeListBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="pageExpense" class="page">
+        <button
+          onclick="generateExpensePDF()"
+          style="
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 10px;
+          "
+        >
+          📥 Download PDF Report
+        </button>
+        <h1
+          style="
+            color: #2c3e50;
+            border-bottom: 2px solid #1abc9c;
+            padding-bottom: 10px;
+          "
+        >
+          Non-Operating Expense Tracker
+        </h1>
+        <div
+          style="
+            background: #fdfdfd;
+            padding: 15px;
+            border: 1px solid #1abc9c;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+          "
+        >
+          <input
+            type="month"
+            id="expenseMonthFilter"
+            onchange="renderExpenses()"
+            style="padding: 8px; border: 1px solid #ccc; border-radius: 4px"
+          />
+          <button
+            onclick="addExpenseRow()"
+            style="
+              background: #27ae60;
+              color: white;
+              border: none;
+              padding: 8px 15px;
+              cursor: pointer;
+              border-radius: 4px;
+              font-weight: bold;
+            "
+          >
+            + Add New Row
+          </button>
+        </div>
+        <div style="overflow-x: auto">
+          <table
+            style="width: 100%; border-collapse: collapse; margin-top: 15px"
+          >
+            <thead>
+              <tr style="background-color: #2c3e50; color: white">
+                <th style="padding: 12px; border: 1px solid #ddd">Date</th>
+                <th style="padding: 12px; border: 1px solid #ddd">
+                  CEO Exp. (₹) / Rec. No.
+                </th>
+                <th style="padding: 12px; border: 1px solid #ddd">
+                  Supervisor Exp. (₹) / Rec. No.
+                </th>
+                <th style="padding: 12px; border: 1px solid #ddd">
+                  Admin Exp. (₹) / Rec. No.
+                </th>
+                <th style="padding: 12px; border: 1px solid #ddd">Action</th>
+              </tr>
+            </thead>
+            <tbody id="expenseTableBody"></tbody>
+            <tfoot
+              id="expenseTableFoot"
+              style="background-color: #f1c40f; font-weight: bold"
+            ></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section id="pageMaterials" class="page">
+        <button
+          onclick="generateMaterialsPDF()"
+          style="
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 10px;
+          "
+        >
+          📥 Download PDF Report
+        </button>
+        <h1>Materials Procurement Registry</h1>
+        <div
+          style="
+            background: #fdfdfd;
+            padding: 15px;
+            border: 1px solid #1abc9c;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+          "
+        >
+          <input
+            type="month"
+            id="materialsMonthFilter"
+            onchange="renderMaterials()"
+            style="padding: 8px; border: 1px solid #ccc; border-radius: 4px"
+          />
+          <button
+            onclick="addMaterialRow()"
+            style="
+              background: #27ae60;
+              color: white;
+              border: none;
+              padding: 8px 15px;
+              cursor: pointer;
+              border-radius: 4px;
+              font-weight: bold;
+            "
+          >
+            + Add New Entry
+          </button>
+        </div>
+        <div style="overflow-x: auto">
+          <table style="font-size: 0.85em">
+            <thead>
+              <tr style="background-color: #2c3e50; color: white">
+                <th>Date</th>
+                <th>Item Name</th>
+                <th>Quantity</th>
+                <th>Project Name</th>
+                <th>Supplier Co.</th>
+                <th>Receiver Name</th>
+                <th>Amount (₹)</th>
+                <th>Bill Upload</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="materialsTableBody"></tbody>
+            <tfoot
+              id="materialsTableFoot"
+              style="background-color: #f1c40f; font-weight: bold"
+            ></tfoot>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      // Firebase configuration using your specific credentials
+      const firebaseConfig = {
+        apiKey: "AIzaSyDa1felTxMnnv9N-_boLXa_MUvsHXE0ef4",
+        authDomain: "rp-interiors.firebaseapp.com",
+        projectId: "rp-interiors",
+        storageBucket: "rp-interiors.firebasestorage.app",
+        messagingSenderId: "562728158515",
+        appId: "1:562728158515:web:a4ae20094fc01797d4ea46",
+        measurementId: "G-JD2WFJEYWB",
+        databaseURL: "https://rp-interiors-default-rtdb.firebaseio.com/", // Ensure this matches your console URL
+      };
+
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      const database = firebase.database();
+
+      // Global data variables (now linked to the cloud)
+      let projects = [];
+      let employees = [];
+      let expenseRecords = [];
+      let materialRecords = [];
+      // --- MULTI-USER AUTH CONFIG ---
+      const USER_PROFILES = {
+        CEO: "im@ceo!26",
+        Administrator: "im_the_admin+85",
+        Supervisor: "wise_supervisor%94",
+      };
+
+      let currentUserRole = null;
+
+      function handleGlobalLogin() {
+        const role = document.getElementById("userRole").value;
+        const pass = document.getElementById("globalPassword").value;
+        const errorMsg = document.getElementById("loginError");
+
+        if (USER_PROFILES[role] === pass) {
+          currentUserRole = role;
+          sessionStorage.setItem("rp_auth_role", role);
+          errorMsg.style.display = "none";
+          initApplication();
+        } else {
+          errorMsg.style.display = "block";
+        }
+      }
+
+      function initApplication() {
+        document.getElementById("globalAuthOverlay").style.display = "none";
+        document.getElementById("mainAppContent").style.display = "block";
+
+        const adminBtn = document.getElementById("adminNavBtn");
+        if (currentUserRole === "Administrator") {
+          adminBtn.style.display = "block";
+        } else {
+          adminBtn.style.display = "none";
+        }
+
+        // Change THIS line from loadFromLocalStorage() to initCloudSync()
+        initCloudSync();
+        seedProjectPaymentForm();
+
+        showPage("page1");
+      }
+
+      function logout() {
+        sessionStorage.clear();
+        window.location.reload();
+      }
+
+      const defaultDailyRate = 1500;
+
+      // --- STORAGE LOGIC ---
+      // Redefining the function name used 21 times to now sync with the Cloud
+      function saveToLocalStorage() {
+        // Use the Firebase 'database' instance to push data to the cloud
+        database
+          .ref("portalData")
+          .set({
+            projects: projects,
+            employees: employees,
+            expenseRecords: expenseRecords,
+            materialRecords: materialRecords,
+          })
+          .then(() => {
+            console.log(
+              "Real-time Sync: Data successfully saved to Firebase Cloud.",
+            );
+          })
+          .catch((error) => {
+            console.error("Cloud Sync Error: ", error);
+          });
+      }
+
+      // This function replaces loadFromLocalStorage to enable real-time cloud sync
+      function initCloudSync() {
+        // Listen for real-time updates from your Firebase database
+        database.ref("portalData").on("value", (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            // Sync global variables with cloud data
+            projects = data.projects || [];
+            employees = data.employees || [];
+            expenseRecords = data.expenseRecords || [];
+            materialRecords = data.materialRecords || [];
+            normalizeProjectsData();
+
+            // Automatically refresh the current page view with the new data
+            const activePage = Array.from(
+              document.querySelectorAll(".page"),
+            ).find((p) => p.style.display === "block")?.id;
+            if (activePage) {
+              // Re-trigger the render functions based on the current page
+              if (activePage === "page1") renderEmployeeList(); // Change to renderEmployees() if that's your function name
+              if (activePage === "pageExpense") renderExpenses();
+              if (activePage === "pageMaterials") renderMaterials();
+              if (activePage === "page3") renderProjectDashboard();
+              if (activePage === "page4") renderAdminPanel();
+            }
+            console.log("Cloud Data Synced Successfully.");
+          }
+        });
+      }
+
+      // --- AUTH LOGIC ---
+      function checkAdminAuth() {
+        // Block attempt if not Administrator
+        if (currentUserRole !== "Administrator") {
+          alert(
+            "Access Denied: Only Administrator profile can access this panel.",
+          );
+          return;
+        }
+        document.getElementById("loginOverlay").style.display = "flex";
+      }
+
+      function login() {
+        const pass = document.getElementById("adminPassword").value;
+        // Admin Panel strictly requires Administrator credentials
+        if (
+          currentUserRole === "Administrator" &&
+          pass === USER_PROFILES["Administrator"]
+        ) {
+          document.getElementById("loginOverlay").style.display = "none";
+          document.getElementById("adminPassword").value = "";
+          showPage("page4");
+        } else {
+          alert("Access Denied: Administrator profile required!");
+        }
+      }
+
+      function closeLogin() {
+        document.getElementById("loginOverlay").style.display = "none";
+      }
+
+      // --- NAVIGATION ---
+      function showPage(pageId) {
+        document
+          .querySelectorAll(".page")
+          .forEach((p) => (p.style.display = "none"));
+        document.getElementById(pageId).style.display = "block";
+
+        if (pageId === "page1") renderEmployeeList();
+        if (pageId === "pageExpense") renderExpenses();
+        if (pageId === "pageMaterials") renderMaterials();
+        if (pageId === "page3") renderProjectDashboard();
+        if (pageId === "page4") renderAdminPanel();
+      }
+
+      function getTodayISODate() {
+        return new Date().toISOString().split("T")[0];
+      }
+
+      function formatDateDisplay(dateStr) {
+        if (!dateStr) return "N/A";
+        const date = new Date(dateStr);
+        if (Number.isNaN(date.getTime())) return dateStr;
+        return date.toLocaleDateString("en-IN");
+      }
+
+      function formatCurrency(value) {
+        return `₹${Number(value || 0).toLocaleString("en-IN")}`;
+      }
+
+      function ensureArray(value) {
+        return Array.isArray(value) ? value : [];
+      }
+
+      function syncProjectTotals(project) {
+        project.generatedPayments = ensureArray(project.generatedPayments);
+        project.receivedPayments = ensureArray(project.receivedPayments);
+
+        project.totalAmt = project.generatedPayments.reduce(
+          (sum, item) => sum + (Number(item.amount) || 0),
+          0,
+        );
+        project.recAmt = project.receivedPayments.reduce(
+          (sum, item) => sum + (Number(item.amount) || 0),
+          0,
+        );
+
+        return project;
+      }
+
+      function normalizeProject(project) {
+        const normalized = {
+          ...project,
+          generatedPayments: ensureArray(project.generatedPayments).map(
+            (item) => ({
+              date: item.date || getTodayISODate(),
+              amount: Number(item.amount) || 0,
+              note: item.note || "",
+              type: item.type || "generated",
+              isOpening: Boolean(item.isOpening),
+            }),
+          ),
+          receivedPayments: ensureArray(project.receivedPayments).map(
+            (item) => ({
+              date: item.date || getTodayISODate(),
+              amount: Number(item.amount) || 0,
+              mode: item.mode || "",
+              note: item.note || "",
+              type: item.type || "received",
+              isOpening: Boolean(item.isOpening),
+            }),
+          ),
+        };
+
+        if (
+          normalized.generatedPayments.length === 0 &&
+          Number(project.totalAmt || 0) > 0
+        ) {
+          normalized.generatedPayments.push({
+            date: project.genDate || project.payDate || getTodayISODate(),
+            amount: Number(project.totalAmt) || 0,
+            note: "Opening generated amount",
+            type: "generated",
+            isOpening: true,
+          });
+        }
+
+        if (
+          normalized.receivedPayments.length === 0 &&
+          Number(project.recAmt || 0) > 0
+        ) {
+          normalized.receivedPayments.push({
+            date: project.payDate || getTodayISODate(),
+            amount: Number(project.recAmt) || 0,
+            mode: project.payMode || "",
+            note: "Opening client payment",
+            type: "received",
+            isOpening: true,
+          });
+        }
+
+        return syncProjectTotals(normalized);
+      }
+
+      function normalizeProjectsData() {
+        projects = ensureArray(projects).map((project) =>
+          normalizeProject(project),
+        );
+      }
+
+      function upsertOpeningGenerated(project, amount, date) {
+        project.generatedPayments = ensureArray(project.generatedPayments);
+        const openingIndex = project.generatedPayments.findIndex(
+          (item) => item.isOpening,
+        );
+        const openingEntry = {
+          date: date || getTodayISODate(),
+          amount: Number(amount) || 0,
+          note: "Opening generated amount",
+          type: "generated",
+          isOpening: true,
+        };
+
+        if (openingIndex >= 0) {
+          project.generatedPayments[openingIndex] = openingEntry;
+        } else if (openingEntry.amount > 0) {
+          project.generatedPayments.unshift(openingEntry);
+        }
+
+        if (openingEntry.amount <= 0) {
+          project.generatedPayments = project.generatedPayments.filter(
+            (item) => !item.isOpening,
+          );
+        }
+      }
+
+      function upsertOpeningReceived(project, amount, date, mode) {
+        project.receivedPayments = ensureArray(project.receivedPayments);
+        const openingIndex = project.receivedPayments.findIndex(
+          (item) => item.isOpening,
+        );
+        const openingEntry = {
+          date: date || getTodayISODate(),
+          amount: Number(amount) || 0,
+          mode: mode || "",
+          note: "Opening client payment",
+          type: "received",
+          isOpening: true,
+        };
+
+        if (openingIndex >= 0) {
+          project.receivedPayments[openingIndex] = openingEntry;
+        } else if (openingEntry.amount > 0) {
+          project.receivedPayments.unshift(openingEntry);
+        }
+
+        if (openingEntry.amount <= 0) {
+          project.receivedPayments = project.receivedPayments.filter(
+            (item) => !item.isOpening,
+          );
+        }
+      }
+
+      function getProjectFinancials(project) {
+        const normalized = syncProjectTotals(project);
+        return {
+          totalGenerated: Number(normalized.totalAmt) || 0,
+          totalReceived: Number(normalized.recAmt) || 0,
+          settlement:
+            (Number(normalized.totalAmt) || 0) -
+            (Number(normalized.recAmt) || 0),
+        };
+      }
+
+      function getProjectLedger(project) {
+        const generatedRows = ensureArray(project.generatedPayments).map(
+          (entry) => ({
+            date: entry.date,
+            type: "Payment Generated",
+            amount: Number(entry.amount) || 0,
+            mode: "-",
+            note: entry.note || "-",
+          }),
+        );
+        const receivedRows = ensureArray(project.receivedPayments).map(
+          (entry) => ({
+            date: entry.date,
+            type: "Payment Received",
+            amount: Number(entry.amount) || 0,
+            mode: entry.mode || "-",
+            note: entry.note || "-",
+          }),
+        );
+
+        return [...generatedRows, ...receivedRows].sort(
+          (a, b) => new Date(a.date) - new Date(b.date),
+        );
+      }
+
+      let projectFormGeneratedPayments = [];
+      let projectFormReceivedPayments = [];
+
+      function getBlankProjectPayment(type) {
+        if (type === "generated") {
+          return {
+            date: getTodayISODate(),
+            amount: 0,
+            note: "",
+            type: "generated",
+            isOpening: false,
+          };
+        }
+
+        return {
+          date: getTodayISODate(),
+          amount: 0,
+          mode: "",
+          note: "",
+          type: "received",
+          isOpening: false,
+        };
+      }
+
+      function renderProjectPaymentEditors() {
+        const generatedHost = document.getElementById(
+          "generatedPaymentsEditor",
+        );
+        const receivedHost = document.getElementById("receivedPaymentsEditor");
+        if (!generatedHost || !receivedHost) return;
+
+        generatedHost.innerHTML = projectFormGeneratedPayments
+          .map(
+            (entry, index) => `
+              <div class="payment-row">
+                <input type="date" value="${entry.date || ""}" onchange="updateProjectPaymentRow('generated', ${index}, 'date', this.value)" />
+                <input type="number" value="${entry.amount || ""}" placeholder="Amount (₹)" onchange="updateProjectPaymentRow('generated', ${index}, 'amount', this.value)" />
+                <input type="text" value="${entry.note || ""}" placeholder="Note" onchange="updateProjectPaymentRow('generated', ${index}, 'note', this.value)" />
+                <button type="button" class="btn-del" onclick="removeProjectPaymentRow('generated', ${index})">×</button>
+              </div>
+            `,
+          )
+          .join("");
+
+        receivedHost.innerHTML = projectFormReceivedPayments
+          .map(
+            (entry, index) => `
+              <div class="payment-row">
+                <input type="date" value="${entry.date || ""}" onchange="updateProjectPaymentRow('received', ${index}, 'date', this.value)" />
+                <input type="number" value="${entry.amount || ""}" placeholder="Amount (₹)" onchange="updateProjectPaymentRow('received', ${index}, 'amount', this.value)" />
+                <select onchange="updateProjectPaymentRow('received', ${index}, 'mode', this.value)">
+                  <option value="">Payment Mode</option>
+                  <option value="Cash" ${entry.mode === "Cash" ? "selected" : ""}>Cash</option>
+                  <option value="Bank Transfer" ${entry.mode === "Bank Transfer" ? "selected" : ""}>Bank Transfer</option>
+                  <option value="UPI" ${entry.mode === "UPI" ? "selected" : ""}>UPI</option>
+                  <option value="Cheque" ${entry.mode === "Cheque" ? "selected" : ""}>Cheque</option>
+                </select>
+                <input type="text" value="${entry.note || ""}" placeholder="Note" onchange="updateProjectPaymentRow('received', ${index}, 'note', this.value)" />
+                <button type="button" class="btn-del" onclick="removeProjectPaymentRow('received', ${index})">×</button>
+              </div>
+            `,
+          )
+          .join("");
+      }
+
+      function appendProjectPaymentRow(type, entry = null) {
+        const target =
+          type === "generated"
+            ? projectFormGeneratedPayments
+            : projectFormReceivedPayments;
+        target.push(entry ? { ...entry } : getBlankProjectPayment(type));
+        renderProjectPaymentEditors();
+      }
+
+      function updateProjectPaymentRow(type, index, field, value) {
+        const target =
+          type === "generated"
+            ? projectFormGeneratedPayments
+            : projectFormReceivedPayments;
+        if (!target[index]) return;
+        target[index][field] = field === "amount" ? Number(value || 0) : value;
+      }
+
+      function removeProjectPaymentRow(type, index) {
+        const target =
+          type === "generated"
+            ? projectFormGeneratedPayments
+            : projectFormReceivedPayments;
+        target.splice(index, 1);
+        if (target.length === 0) {
+          target.push(getBlankProjectPayment(type));
+        }
+        renderProjectPaymentEditors();
+      }
+
+      function seedProjectPaymentForm(project = null) {
+        projectFormGeneratedPayments = project
+          ? ensureArray(project.generatedPayments).map((entry) => ({
+              ...entry,
+            }))
+          : [getBlankProjectPayment("generated")];
+        projectFormReceivedPayments = project
+          ? ensureArray(project.receivedPayments).map((entry) => ({ ...entry }))
+          : [getBlankProjectPayment("received")];
+
+        if (projectFormGeneratedPayments.length === 0) {
+          projectFormGeneratedPayments = [getBlankProjectPayment("generated")];
+        }
+        if (projectFormReceivedPayments.length === 0) {
+          projectFormReceivedPayments = [getBlankProjectPayment("received")];
+        }
+
+        renderProjectPaymentEditors();
+      }
+
+      function collectProjectPaymentsFromForm() {
+        const generatedPayments = projectFormGeneratedPayments
+          .map((entry) => ({
+            ...entry,
+            amount: Number(entry.amount) || 0,
+            date: entry.date || getTodayISODate(),
+            note: entry.note || "",
+            type: "generated",
+          }))
+          .filter((entry) => entry.amount > 0);
+
+        const receivedPayments = projectFormReceivedPayments
+          .map((entry) => ({
+            ...entry,
+            amount: Number(entry.amount) || 0,
+            date: entry.date || getTodayISODate(),
+            mode: entry.mode || "",
+            note: entry.note || "",
+            type: "received",
+          }))
+          .filter((entry) => entry.amount > 0);
+
+        return { generatedPayments, receivedPayments };
+      }
+
+      // --- CALCULATION LOGIC FOR TIME/DAYS ---
+      function calculateDayAndWage(empId) {
+        const entryElement = document.getElementById(`entry-${empId}`);
+        const exitElement = document.getElementById(`exit-${empId}`);
+        const statusElement = document.getElementById(`status-${empId}`);
+
+        if (!entryElement || !exitElement || !statusElement)
+          return { dayCount: 0 };
+
+        const entry = entryElement.value;
+        const exit = exitElement.value;
+        const status = statusElement.value;
+
+        if (status !== "Present" || !entry || !exit) {
+          return { dayCount: 0 };
+        }
+
+        const startTime = new Date(`2000-01-01T${entry}`);
+        const endTime = new Date(`2000-01-01T${exit}`);
+        let diffHours = (endTime - startTime) / (1000 * 60 * 60);
+
+        if (diffHours < 0) diffHours += 24;
+
+        let dayMultiplier = 0;
+        if (diffHours >= 15) dayMultiplier = 2;
+        else if (diffHours >= 12) dayMultiplier = 1.5;
+        else if (diffHours >= 9) dayMultiplier = 1;
+        else dayMultiplier = Number((diffHours / 9).toFixed(2));
+
+        return { dayCount: dayMultiplier };
+      }
+
+      // --- CORE RENDERING ---
+      function renderEmployeeList() {
+        const today = new Date().toDateString();
+        const dateElement = document.getElementById("currentDate");
+        if (dateElement) dateElement.innerText = today;
+
+        const tbody = document.getElementById("employeeListBody");
+
+        if (employees.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No employees found.</td></tr>`;
+          return;
+        }
+
+        const runningProjects = projects
+          .filter((p) => p.status === "running")
+          .map((p) => p.name);
+
+        const isAdmin = currentUserRole === "Administrator";
+
+        tbody.innerHTML = employees
+          .map((emp) => {
+            const h =
+              (emp.attendanceHistory || []).find((rec) => rec.date === today) ||
+              {};
+            const statusVal = h.status || "Present";
+
+            return `
+                    <tr id="row-${emp.id}">
+                        <td>#${emp.id}</td>
+                        <td id="details-cell-${emp.id}">
+                            <strong>${emp.name}</strong><br>
+                            <small>Age: ${emp.age || "N/A"} | ${emp.contact || "No Contact"}</small>
+                        </td>
+                        <td>
+                            <select id="status-${emp.id}" onchange="calculateDayAndWage('${emp.id}')">
+                                <option value="Present" ${statusVal === "Present" ? "selected" : ""}>Present</option>
+                                <option value="Absent" ${statusVal === "Absent" ? "selected" : ""}>Absent</option>
+                                <option value="Leave" ${statusVal === "Leave" ? "selected" : ""}>Leave</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="time" class="time-input" id="entry-${emp.id}" 
+                            value="${h.entry || "09:00"}" 
+                            onchange="calculateDayAndWage('${emp.id}')">
+                        </td>
+                        <td>
+                            <input type="time" class="time-input" id="exit-${emp.id}" 
+                            value="${h.exit || "18:00"}" 
+                            onchange="calculateDayAndWage('${emp.id}')">
+                        </td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span style="font-size:0.8em; color:#7f8c8d;">Days: <b id="day-display-${emp.id}">${h.dayCount || "0"}</b></span>
+                                <input type="number" 
+                                    id="manual-wage-${emp.id}" 
+                                    value="${h.pay || ""}" 
+                                    placeholder="₹ Enter Pocket Money"
+                                    style="width: 100px; padding: 5px; border: 1px solid #1abc9c; border-radius: 4px;">
+                            </div>
+                        </td>
+                        <td>
+                            <select id="proj-${emp.id}" onchange="updateProject('${emp.id}', this.value)">
+                                <option value="">Unassigned</option>
+                                ${runningProjects.map((p) => `<option value="${p}" ${emp.currentProject === p ? "selected" : ""}>${p}</option>`).join("")}
+                            </select>
+                        </td>
+                        <td>
+                            ${isAdmin ? `<button onclick="viewEmployee('${emp.id}')">History</button>` : ""}
+                        </td>
+                    </tr>
+                `;
+          })
+          .join("");
+
+        employees.forEach((emp) => calculateDayAndWage(emp.id));
+      }
+
+      function saveAttendance() {
+        const today = new Date().toDateString();
+
+        employees.forEach((emp) => {
+          const status = document.getElementById(`status-${emp.id}`).value;
+          const entry = document.getElementById(`entry-${emp.id}`).value;
+          const exit = document.getElementById(`exit-${emp.id}`).value;
+          const wageInput = document.getElementById(`manual-wage-${emp.id}`);
+          const manualWage = parseInt(wageInput.value) || 0;
+
+          // Calculate the day count (multiplier) for history
+          const results = calculateDayAndWage(emp.id);
+
+          // Remove any existing entry for today to avoid duplicates
+          emp.attendanceHistory = (emp.attendanceHistory || []).filter(
+            (h) => h.date !== today,
+          );
+
+          // Push the new record
+          emp.attendanceHistory.push({
+            date: today,
+            status: status,
+            entry: entry,
+            exit: exit,
+            pay: manualWage,
+            project: emp.currentProject || "Unassigned",
+            dayCount: results ? results.dayCount : 0,
+          });
+        });
+
+        // Sync to Firebase Cloud
+        saveToLocalStorage();
+
+        alert("Attendance Saved and Locked!");
+
+        // CRITICAL: Re-run the render function to apply the 'disabled' tags immediately
+        renderEmployeeList();
+      }
+
+      function renderProjectDashboard() {
+        const renderList = (status) => {
+          const filtered = projects.filter((p) => p.status === status);
+          if (filtered.length === 0) return `<p class="empty-state">None</p>`;
+          return filtered
+            .map((p) => {
+              const workers = employees.filter(
+                (e) => e.currentProject === p.name,
+              );
+              const finances = getProjectFinancials(p);
+
+              const showMoney = currentUserRole !== "Supervisor";
+
+              return `<div style="margin-bottom:15px; padding:8px; border-bottom:1px solid #eee;">
+                                        <strong>${p.name}</strong> <small>(${p.company || "No Company"})</small>
+                                        ${showMoney ? `<div class="money-tag">Proj No: ${p.invoice || "N/A"} | Total: ${formatCurrency(finances.totalGenerated)} | Rec: ${formatCurrency(finances.totalReceived)} | <span class="money-left">Left: ${formatCurrency(finances.settlement)}</span></div>` : ""}
+                                        ${status === "running" ? `<small>${workers.length}/10 Workers: ${workers.map((w) => w.name).join(", ")}</small>` : ""}
+                                    </div>`;
+            })
+            .join("");
+        };
+
+        document.getElementById("listRunning").innerHTML =
+          renderList("running");
+        document.getElementById("listUpcoming").innerHTML =
+          renderList("upcoming");
+        document.getElementById("listCompleted").innerHTML =
+          renderList("completed");
+      }
+
+      function viewEmployee(id, selectedMonth = null) {
+        if (currentUserRole !== "Administrator") {
+          alert("Access Denied: History is restricted to Administrators.");
+          return;
+        }
+
+        const emp = employees.find((e) => e.id === id);
+        if (!emp) {
+          alert("Employee not found.");
+          return;
+        }
+
+        if (!selectedMonth) {
+          const now = new Date();
+          selectedMonth = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}`;
+        }
+
+        const [year, month] = selectedMonth.split("-");
+        const monthName = new Date(year, month - 1).toLocaleString("default", {
+          month: "long",
+        });
+
+        const history = emp.attendanceHistory || [];
+        const filteredHistory = history
+          .filter((h) => {
+            const d = new Date(h.date);
+            return d.getFullYear() == year && d.getMonth() + 1 == month;
+          })
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        const totalEarnings = filteredHistory.reduce(
+          (sum, h) => sum + (h.pay || 0),
+          0,
+        );
+        const totalDays = filteredHistory.reduce(
+          (sum, h) => sum + parseFloat(h.dayCount || 0),
+          0,
+        );
+
+        const payments = emp.payments || [];
+        const filteredPayments = payments.filter(
+          (p) => p.month === selectedMonth,
+        );
+        const totalPaid = filteredPayments.reduce(
+          (sum, p) => sum + (p.amount || 0),
+          0,
+        );
+        const netPaymentMade = totalEarnings + totalPaid;
+
+        const content = `
+              <div style="background: #ecf0f1; padding: 20px; border-radius: 8px; margin: 15px 0;">
+                  <div class="profile-header">
+                      <img src="${emp.photo || "https://via.placeholder.com/100"}" class="main-profile-img">
+                      <div>
+                          <h2>${emp.name}</h2>
+                          <p><strong>Employee ID:</strong> #${emp.id}</p>
+                          <p><strong>Age:</strong> ${emp.age || "N/A"} | <strong>Contact:</strong> ${emp.contact || "N/A"}</p>
+                          <p><strong>Current Project:</strong> ${emp.currentProject || "Unassigned"}</p>
+                          <hr>
+                          <p><strong>Banking Details:</strong></p>
+                          <p>Bank Name: ${emp.bankName || "N/A"}</p>
+                          <p>Account No: ${emp.account || "N/A"}</p>
+                          <p>IFSC Code: ${emp.ifsc || "N/A"}</p>
+                          <hr>
+                          <p><strong>Month Stats:</strong> Total Days: ${totalDays.toFixed(2)} | Total Earnings: ₹${totalEarnings.toLocaleString()}</p>
+                      </div>
+                  </div>
+                  <div class="emp-docs" style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
+                      <div class="doc-item">
+                          <small>Aadhar Card:</small><br>
+                          ${emp.aadhar ? `<img src="${emp.aadhar}" onclick="window.open(this.src)" style="width: 150px; border: 1px solid #ccc; border-radius: 5px; cursor: pointer;">` : "<i>No document uploaded</i>"}
+                      </div>
+                  </div>
+              </div>
+
+              <div class="report-controls">
+                  <div>
+                      <label><strong>Select Month:</strong> </label>
+                      <input type="month" id="reportMonth" value="${selectedMonth}" onchange="viewEmployee('${id}', this.value)">
+                  </div>
+                  <button class="btn-pdf" onclick="generatePDF('${id}', '${selectedMonth}')">📥 Download ${monthName} Report (PDF)</button>
+              </div>
+
+              <div style="background: #f9f9f9; padding: 20px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 25px;">
+                  <h3>Payments Ledger - ${monthName} ${year}</h3>
+                  <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                      <input type="date" id="payDate" placeholder="Date">
+                      <input type="number" id="payAmt" placeholder="Amount Paid">
+                      <select id="payMode">
+                          <option value="Cash">Cash</option>
+                          <option value="Bank Transfer">Bank Transfer</option>
+                          <option value="Cheque">Cheque</option>
+                          <option value="UPI">UPI</option>
+                      </select>
+                      <button class="btn-add" id="paymentSubmitBtn" onclick="addPayment('${id}', '${selectedMonth}')">Add Payment</button>
+                      <button class="btn-del" id="paymentCancelBtn" style="display:none;" onclick="viewEmployee('${id}', '${selectedMonth}')">Cancel</button>
+                  </div>
+                  <table>
+                      <thead><tr><th>Date</th><th>Amount</th><th>Mode</th><th>Action</th></tr></thead>
+                      <tbody>
+                          ${
+                            filteredPayments.length === 0
+                              ? '<tr><td colspan="4" class="empty-state">No payments recorded</td></tr>'
+                              : filteredPayments
+                                  .map((p) => {
+                                    const globalIdx = emp.payments.indexOf(p);
+                                    return `<tr>
+                                  <td>${p.date}</td>
+                                  <td>₹${p.amount.toLocaleString()}</td>
+                                  <td>${p.mode}</td>
+                                  <td>
+                                      <button class="btn-edit" onclick="editPayment('${id}', '${selectedMonth}', ${globalIdx})">✏️</button>
+                                      <button class="btn-del" onclick="deletePayment('${id}', '${selectedMonth}', ${globalIdx})">Delete</button>
+                                  </td>
+                              </tr>`;
+                                  })
+                                  .join("")
+                          }
+                      </tbody>
+                      <tfoot>
+                          <tr style="background:#eee; font-weight:bold;">
+                              <td colspan="2">TOTAL PAID: ₹${totalPaid.toLocaleString()}</td>
+                              <td colspan="2" style="color: #27ae60">NET PAYMENT MADE: ₹${netPaymentMade.toLocaleString()}</td>
+                          </tr>
+                      </tfoot>
+                  </table>
+              </div>
+
+              <h3>Attendance Log for ${monthName} ${year}</h3>
+              <table>
+                  <thead><tr><th>Date</th><th>Project</th><th>Status</th><th>Time In/Out</th><th>Day Count</th><th>Earnings</th></tr></thead>
+                  <tbody id="historyTableBody">
+                      ${
+                        filteredHistory.length === 0
+                          ? '<tr><td colspan="6" class="empty-state">No records for this month</td></tr>'
+                          : filteredHistory
+                              .map(
+                                (h) =>
+                                  `<tr><td>${h.date}</td><td>${h.project || "Unassigned"}</td><td>${h.status}</td><td>${h.entry || "-"}/${h.exit || "-"}</td><td>${parseFloat(h.dayCount || 0).toFixed(2)} days</td><td>₹${(h.pay || 0).toLocaleString()}</td></tr>`,
+                              )
+                              .join("")
+                      }
+                  </tbody>
+                  <tfoot>
+                      <tr style="background:#eee; font-weight:bold;">
+                          <td colspan="5" style="text-align:right">TOTAL POCKET MONEY</td>
+                          <td>₹${totalEarnings.toLocaleString()}</td>
+                      </tr>
+                  </tfoot>
+              </table>
+          `;
+        document.getElementById("personalPortalContent").innerHTML = content;
+        showPage("page2");
+      }
+      function addPayment(empId, month) {
+        const date = document.getElementById("payDate").value;
+        const amt = document.getElementById("payAmt").value;
+        const mode = document.getElementById("payMode").value;
+        if (!amt) return alert("Enter amount");
+
+        const emp = employees.find((e) => e.id === empId);
+        if (!emp.payments) emp.payments = [];
+
+        const paymentDate = date
+          ? new Date(date).toLocaleDateString()
+          : new Date().toLocaleDateString();
+
+        emp.payments.push({
+          month: month,
+          date: paymentDate,
+          amount: parseInt(amt),
+          mode: mode,
+        });
+        saveToLocalStorage();
+        viewEmployee(empId, month);
+      }
+
+      function editPayment(empId, month, paymentIdx) {
+        const emp = employees.find((e) => e.id === empId);
+        const payment = emp.payments[paymentIdx];
+
+        const dateInput = document.getElementById("payDate");
+        const amtInput = document.getElementById("payAmt");
+        const modeSelect = document.getElementById("payMode");
+        const submitBtn = document.getElementById("paymentSubmitBtn");
+        const cancelBtn = document.getElementById("paymentCancelBtn");
+
+        // Convert stored date string back to YYYY-MM-DD for the input
+        if (payment.date) {
+          const dateObj = new Date(payment.date);
+          if (!isNaN(dateObj.getTime())) {
+            dateInput.value = dateObj.toISOString().split("T")[0];
+          }
+        }
+
+        amtInput.value = payment.amount;
+        modeSelect.value = payment.mode;
+
+        submitBtn.innerText = "Update Payment";
+        submitBtn.onclick = function () {
+          const newDate = dateInput.value;
+          payment.date = newDate
+            ? new Date(newDate).toLocaleDateString()
+            : payment.date;
+          payment.amount = parseInt(amtInput.value);
+          payment.mode = modeSelect.value;
+
+          saveToLocalStorage();
+          alert("Payment updated successfully!");
+          viewEmployee(empId, month);
+        };
+        cancelBtn.style.display = "inline-block";
+        amtInput.focus();
+      }
+
+      function deletePayment(empId, month, idx) {
+        if (!confirm("Delete this record?")) return;
+        const emp = employees.find((e) => e.id === empId);
+        emp.payments.splice(idx, 1);
+        saveToLocalStorage();
+        viewEmployee(empId, month);
+      }
+
+      function generatePDF(id, monthStr) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const emp = employees.find((e) => e.id === id);
+        const [year, month] = monthStr.split("-");
+        const monthName = new Date(year, month - 1).toLocaleString("default", {
+          month: "long",
+        });
+
+        const filteredHistory = emp.attendanceHistory
+          .filter((h) => {
+            const d = new Date(h.date);
+            return d.getFullYear() == year && d.getMonth() + 1 == month;
+          })
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const totalEarned = filteredHistory.reduce(
+          (sum, h) => sum + (h.pay || 0),
+          0,
+        );
+        const totalPaid = (emp.payments || [])
+          .filter((p) => p.month === monthStr)
+          .reduce((sum, p) => sum + p.amount, 0);
+        // --- PDF Header ---
+        doc.setFontSize(22);
+        doc.setTextColor(44, 62, 80);
+        doc.text("RAM PRAKASH INTERIORS", 105, 15, { align: "center" });
+        doc.setFontSize(14);
+        doc.text(`Monthly Pay Slip: ${monthName} ${year}`, 105, 22, {
+          align: "center",
+        });
+        doc.setDrawColor(26, 188, 156);
+        doc.line(20, 28, 190, 28);
+
+        // --- Left Section: Employee Details & Photo ---
+        if (emp.photo) {
+          doc.addImage(emp.photo, "JPEG", 20, 32, 25, 25);
+        }
+
+        doc.setFontSize(10);
+        doc.setTextColor(51, 51, 51);
+        doc.text(`Name: ${emp.name}`, 50, 35);
+        doc.text(`ID: #${emp.id}`, 50, 40);
+        doc.text(`Contact: ${emp.contact || "N/A"}`, 50, 45);
+        doc.text(`Age: ${emp.age || "N/A"}`, 50, 50);
+
+        // --- Right Section: Bank & Financials ---
+        const rightColX = 110;
+        doc.text(`Bank: ${emp.bankName || "N/A"}`, rightColX, 35);
+        doc.text(`A/C: ${emp.account || "N/A"}`, rightColX, 40);
+        doc.text(`IFSC: ${emp.ifsc || "N/A"}`, rightColX, 45);
+
+        doc.setFontSize(11);
+        doc.text(
+          `Total Pocket Money Given: INR ${totalEarned.toLocaleString()}`,
+          rightColX,
+          52,
+        );
+        doc.setTextColor(192, 57, 43);
+        doc.text(
+          `Additional Payment Given: INR ${totalPaid.toLocaleString()}`,
+          rightColX,
+          58,
+        );
+        doc.setTextColor(39, 174, 96);
+        doc.text(
+          `Net Payment Made: INR ${(totalEarned + totalPaid).toLocaleString()}`,
+          rightColX,
+          64,
+        );
+
+        // --- Aadhar Card Section: Added significant gap here ---
+        let currentY = 65; // Starting Y for the next section
+
+        if (emp.aadhar) {
+          doc.setTextColor(0, 0, 0);
+          doc.setFontSize(10);
+          doc.text("Aadhar Card Copy:", 20, currentY + 5);
+          // Image at Y=72, Height=30. Ends at Y=102.
+          doc.addImage(emp.aadhar, "JPEG", 20, currentY + 7, 50, 30);
+          var tableTitleY = currentY + 45; // title at Y=110
+        } else {
+          var tableTitleY = currentY + 10; // title at Y=75
+        }
+
+        // --- Attendance Table ---
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(12);
+        doc.text("Daily Attendance & Pocket Money Detail", 20, tableTitleY);
+
+        const tableData = filteredHistory.map((h) => [
+          h.date,
+          h.project || "Unassigned",
+          h.status,
+          `${h.entry}/${h.exit}`,
+          `${parseFloat(h.dayCount).toFixed(2)}`,
+          `Rs. ${h.pay}`,
+        ]);
+
+        tableData.push([
+          {
+            content: "TOTAL POCKET MONEY",
+            colSpan: 5,
+            styles: {
+              halign: "right",
+              fontStyle: "bold",
+              fillColor: [230, 230, 230],
+            },
+          },
+          {
+            content: `Rs. ${totalEarned}`,
+            styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
+          },
+        ]);
+
+        doc.autoTable({
+          startY: tableTitleY + 5, // Starts table 5 units below the title
+          head: [
+            ["Date", "Project", "Status", "In/Out", "Days", "Pocket Money"],
+          ],
+          body: tableData,
+          theme: "striped",
+          headStyles: { fillColor: [44, 62, 80] },
+          margin: { top: 10 },
+        });
+
+        // --- Payment History ---
+        if (emp.payments && emp.payments.length > 0) {
+          const payData = emp.payments
+            .filter((p) => p.month === monthStr)
+            .map((p) => [p.date, p.mode, `Rs. ${p.amount}`]);
+
+          if (payData.length > 0) {
+            payData.push([
+              {
+                content: "TOTAL PAID",
+                colSpan: 2,
+                styles: {
+                  halign: "right",
+                  fontStyle: "bold",
+                  fillColor: [230, 230, 230],
+                },
+              },
+              {
+                content: `Rs. ${totalPaid}`,
+                styles: { fontStyle: "bold", fillColor: [230, 230, 230] },
+              },
+            ]);
+            doc.text(
+              "Payment History (Installments)",
+              20,
+              doc.lastAutoTable.finalY + 15,
+            );
+            doc.autoTable({
+              startY: doc.lastAutoTable.finalY + 20,
+              head: [["Payment Date", "Mode", "Amount"]],
+              body: payData,
+              theme: "grid",
+              headStyles: { fillColor: [26, 188, 156] },
+            });
+          }
+        }
+
+        doc.save(`${emp.name}_Report_${monthName}_${year}.pdf`);
+      }
+
+      // --- IMAGE HANDLING HELPER ---
+      function getBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = (error) => reject(error);
+        });
+      }
+
+      // --- ADMIN ACTIONS ---
+      function renderAdminPanel() {
+        const pList = document.getElementById("adminProjectListBody");
+        pList.innerHTML =
+          projects.length === 0
+            ? '<tr><td colspan="4">No projects</td></tr>'
+            : projects
+                .map((p) => {
+                  const left = (p.totalAmt || 0) - (p.recAmt || 0);
+                  return `
+                                    
+                                    <tr>
+                                        <td><b>#${p.invoice || "N/A"}</b><br>${p.company || "-"}<br>${p.name}</td>
+                                        <td>T: ₹${(p.totalAmt || 0).toLocaleString()}<br>R: ₹${(p.recAmt || 0).toLocaleString()}<br><b style="color:red">L: ₹${left.toLocaleString()}</b></td>
+                                        <td style="text-transform:capitalize">${p.status}</td>
+                                        <td>
+                                            <button class="btn-status" onclick="changeStatus('${p.name}', 'running')">R</button>
+                                            <button class="btn-status" onclick="changeStatus('${p.name}', 'upcoming')">U</button>
+                                            <button class="btn-status" onclick="changeStatus('${p.name}', 'completed')">C</button>
+                                            <button class="btn-edit" onclick="editProject('${p.name}')">✏️</button>
+                                            <button class="btn-del" onclick="deleteProject('${p.name}')">×</button>
+                                        </td>
+                                        <td><b>#${p.invoice || "N/A"}</b><br>${p.name}</td>
+                                        <td>Total: ₹${(p.totalAmt || 0).toLocaleString()}<br>Mode: ${p.payMode || "N/A"}</td>
+                                        <td>${p.status}</td>
+                                        <td>
+                                            <button class="btn-status" onclick="changeStatus('${p.name}', 'running')">R</button>
+                                            <button class="btn-edit" onclick="editProject('${p.name}')">✏️</button>
+                                            <button class="btn-pdf" style="background:#3498db; color:white; padding:5px 10px;" onclick="generateProjectPDF('${p.name}')">📄</button>
+                                            <button class="btn-del" onclick="deleteProject('${p.name}')">×</button>
+                                        </td>
+                                    </tr>
+                                    `;
+                })
+                .join("");
+
+        const eList = document.getElementById("adminEmployeeListBody");
+        eList.innerHTML =
+          employees.length === 0
+            ? '<tr><td colspan="9">No employees</td></tr>'
+            : employees
+                .map(
+                  (emp) => `
+                                <tr>
+                                    <td>${emp.id}</td>
+                                    <td>
+                                        ${emp.photo ? `<img src="${emp.photo}" style="width:40px; height:40px; object-fit:cover; border-radius:4px; cursor:pointer;" onclick="window.open(this.src)">` : "No Photo"}
+                                    </td>
+                                    <td>${emp.name}</td>
+                                    <td>${emp.age || "-"}</td>
+                                    <td>${emp.contact || "-"}</td>
+                                    <td>
+                                        ${emp.bankName || "N/A"}<br>
+                                        <small>A/C: ${emp.account || "-"}</small><br>
+                                        <small>IFSC: ${emp.ifsc || "-"}</small>
+                                    </td>
+                                    <td>${emp.currentProject || "Unassigned"}</td>
+                                    <td>
+                                        ${emp.aadhar ? `<img src="${emp.aadhar}" style="width:60px; height:40px; object-fit:contain; border:1px solid #ddd; cursor:pointer;" onclick="window.open(this.src)">` : "No Aadhar"}
+                                    </td>
+                                    <td>
+                                        <button class="btn-edit" onclick="editEmployee('${emp.id}')">✏️</button>
+                                        <button class="btn-del" onclick="deleteEmployee('${emp.id}')">Remove</button>
+                                    </td>
+                                </tr>
+                            `,
+                )
+                .join("");
+
+        const dropdown = document.getElementById("adminManualEmp");
+        dropdown.innerHTML =
+          '<option value="">Select Employee</option>' +
+          employees
+            .map((e) => `<option value="${e.id}">${e.name}</option>`)
+            .join("");
+      }
+
+      function adminManualEntry() {
+        const empId = document.getElementById("adminManualEmp").value;
+        const rawDate = document.getElementById("adminManualDate").value;
+        const wage = document.getElementById("adminManualWage").value;
+        const status = document.getElementById("adminManualStatus").value;
+        const entry = document.getElementById("adminManualEntryTime").value;
+        const exit = document.getElementById("adminManualExitTime").value;
+
+        if (!empId || !rawDate || !wage) {
+          alert("Please fill the Employee, Date, and Pocket Money fields.");
+          return;
+        }
+
+        const formattedDate = new Date(rawDate).toDateString();
+        const emp = employees.find((e) => e.id === empId);
+
+        // Remove existing record for that date if it exists to prevent duplicates
+        emp.attendanceHistory = (emp.attendanceHistory || []).filter(
+          (h) => h.date !== formattedDate,
+        );
+
+        // Calculate time difference
+        const startTime = new Date(`2000-01-01T${entry}`);
+        const endTime = new Date(`2000-01-01T${exit}`);
+        let diffHours = (endTime - startTime) / (1000 * 60 * 60);
+        if (diffHours < 0) diffHours += 24;
+
+        let dayMultiplier = 0;
+
+        // --- APPLYING THE UPDATED 9-12-15 LOGIC ---
+        if (status === "Present") {
+          if (diffHours >= 15) {
+            dayMultiplier = 2;
+          } else if (diffHours >= 12) {
+            dayMultiplier = 1.5;
+          } else if (diffHours >= 9) {
+            dayMultiplier = 1;
+          } else {
+            dayMultiplier = Number((diffHours / 9).toFixed(2));
+          }
+        } else if (status === "Leave") {
+          dayMultiplier = 0; // Or keep as 0 if leave is unpaid
+        }
+
+        // Add the new corrected record to history
+        emp.attendanceHistory.push({
+          date: formattedDate,
+          status: status,
+          entry: entry,
+          exit: exit,
+          pay: parseInt(wage),
+          project: emp.currentProject || "Unassigned",
+          dayCount: dayMultiplier, // Now correctly calculates 1, 1.5, or 2
+        });
+
+        saveToLocalStorage(); // Sync to Firebase
+        alert(
+          `Record updated for ${emp.name} on ${formattedDate}. Calculated Days: ${dayMultiplier}`,
+        );
+
+        // Refresh the attendance page if the user is looking at it
+        if (document.getElementById("page1").style.display === "block") {
+          renderEmployeeList();
+        }
+      }
+
+      function editProject(name) {
+        const p = projects.find((p) => p.name === name);
+        if (!p) return;
+
+        document.getElementById("editProjectOriginalName").value = p.name;
+        document.getElementById("newProjInvoice").value = p.invoice || "";
+        document.getElementById("newProjCompany").value = p.company || "";
+        document.getElementById("newProjectName").value = p.name;
+        document.getElementById("newProjTotal").value = p.totalAmt || 0;
+        document.getElementById("newProjReceived").value = p.recAmt || 0;
+        document.getElementById("newProjectStatus").value = p.status;
+
+        document.getElementById("projectFormTitle").innerText =
+          "Edit Project: " + p.name;
+        document.getElementById("projectSubmitBtn").innerText =
+          "Update Project";
+        document.getElementById("projectSubmitBtn").onclick = updateProjectData;
+        document.getElementById("projectCancelBtn").style.display =
+          "inline-block";
+
+        document
+          .getElementById("projectFormContainer")
+          .scrollIntoView({ behavior: "smooth" });
+      }
+
+      function cancelProjectEdit() {
+        [
+          "newProjInvoice",
+          "newProjCompany",
+          "newProjectName",
+          "newProjTotal",
+          "newProjReceived",
+          "editProjectOriginalName",
+        ].forEach((id) => (document.getElementById(id).value = ""));
+        document.getElementById("projectFormTitle").innerText =
+          "Create New Project";
+        document.getElementById("projectSubmitBtn").innerText = "Add Project";
+        document.getElementById("projectSubmitBtn").onclick = addProject;
+        document.getElementById("projectCancelBtn").style.display = "none";
+      }
+
+      function updateProjectData() {
+        const originalName = document.getElementById(
+          "editProjectOriginalName",
+        ).value;
+        const newName = document.getElementById("newProjectName").value.trim();
+
+        const projectIndex = projects.findIndex((p) => p.name === originalName);
+        if (projectIndex === -1) return;
+
+        projects[projectIndex] = {
+          invoice: document.getElementById("newProjInvoice").value.trim(),
+          company: document.getElementById("newProjCompany").value.trim(),
+          name: newName,
+          totalAmt:
+            parseFloat(document.getElementById("newProjTotal").value) || 0,
+          recAmt:
+            parseFloat(document.getElementById("newProjReceived").value) || 0,
+          status: document.getElementById("newProjectStatus").value,
+        };
+
+        if (originalName !== newName) {
+          employees.forEach((emp) => {
+            if (emp.currentProject === originalName)
+              emp.currentProject = newName;
+          });
+        }
+
+        saveToLocalStorage();
+        cancelProjectEdit();
+        renderAdminPanel();
+        alert("Project updated successfully!");
+      }
+
+      function addProject() {
+        const invoice = document.getElementById("newProjInvoice").value.trim();
+        const company = document.getElementById("newProjCompany").value.trim();
+        const name = document.getElementById("newProjectName").value.trim();
+        const total =
+          parseFloat(document.getElementById("newProjTotal").value) || 0;
+        const received =
+          parseFloat(document.getElementById("newProjReceived").value) || 0;
+        const status = document.getElementById("newProjectStatus").value;
+
+        function addProject() {
+          const invoice = document
+            .getElementById("newProjInvoice")
+            .value.trim();
+          const company = document
+            .getElementById("newProjCompany")
+            .value.trim();
+          const name = document.getElementById("newProjectName").value.trim();
+          const total =
+            parseFloat(document.getElementById("newProjTotal").value) || 0;
+          const received =
+            parseFloat(document.getElementById("newProjReceived").value) || 0;
+          const payDate = document.getElementById("newProjPayDate").value;
+          const payMode = document.getElementById("newProjPayMode").value;
+          const status = document.getElementById("newProjectStatus").value;
+
+          if (name && !projects.find((p) => p.name === name)) {
+            projects.push({
+              invoice,
+              company,
+              name,
+              totalAmt: total,
+              recAmt: received,
+              payDate,
+              payMode,
+              status,
+            });
+
+            // Reset fields
+            [
+              "newProjInvoice",
+              "newProjCompany",
+              "newProjectName",
+              "newProjTotal",
+              "newProjReceived",
+              "newProjPayDate",
+              "newProjPayMode",
+            ].forEach((id) => (document.getElementById(id).value = ""));
+
+            saveToLocalStorage();
+            renderAdminPanel();
+          } else {
+            alert("Enter a unique project name");
+          }
+        }
+
+        if (name && !projects.find((p) => p.name === name)) {
+          projects.push({
+            invoice,
+            company,
+            name,
+            totalAmt: total,
+            recAmt: received,
+            status,
+          });
+          [
+            "newProjInvoice",
+            "newProjCompany",
+            "newProjectName",
+            "newProjTotal",
+            "newProjReceived",
+          ].forEach((id) => (document.getElementById(id).value = ""));
+          saveToLocalStorage();
+          renderAdminPanel();
+        } else {
+          alert("Enter a unique project name");
+        }
+      }
+
+      function changeStatus(name, newStatus) {
+        const proj = projects.find((p) => p.name === name);
+        if (proj) {
+          proj.status = newStatus;
+          if (newStatus === "completed" || newStatus === "upcoming") {
+            employees.forEach((e) => {
+              if (e.currentProject === name) e.currentProject = "";
+            });
+          }
+          saveToLocalStorage();
+          renderAdminPanel();
+        }
+      }
+
+      function generateProjectPDF(projectName) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF("l"); // Landscape orientation
+        const p = projects.find((proj) => proj.name === projectName);
+
+        if (!p) return alert("Project not found");
+
+        const left = (p.totalAmt || 0) - (p.recAmt || 0);
+
+        // --- Header ---
+        doc.setFontSize(22);
+        doc.setTextColor(44, 62, 80);
+        // Updated line: Dynamically uses the company name in the main heading
+        doc.text(`RAM PRAKASH INTERIORS - ${p.company || "N/A"}`, 145, 15, {
+          align: "center",
+        });
+
+        // --- Project Info ---
+        doc.setFontSize(11);
+        doc.setTextColor(0);
+        doc.text(`Project: ${p.name}`, 20, 30);
+        doc.text(`Company: ${p.company || "N/A"}`, 20, 37);
+        doc.text(`System Proj No: ${p.invoice || "N/A"}`, 20, 44);
+
+        // --- Data Table ---
+        const tableData = [
+          [
+            p.invoice || "N/A",
+            p.name,
+            `Rs. ${p.totalAmt.toLocaleString()}`,
+            `Rs. ${p.recAmt.toLocaleString()}`,
+            p.payDate || "N/A",
+            p.payMode || "N/A",
+            `Rs. ${left.toLocaleString()}`,
+            "", // Blank column for manual pen entry
+          ],
+        ];
+
+        doc.autoTable({
+          startY: 55,
+          head: [
+            [
+              "Proj No",
+              "Project Name",
+              "Total Amt",
+              "Received",
+              "Pay Date",
+              "Pay Mode",
+              "Balance",
+              "Invoice No. (Manual)",
+            ],
+          ],
+          body: tableData,
+          theme: "grid",
+          headStyles: { fillColor: [44, 62, 80] },
+          columnStyles: {
+            7: { cellWidth: 50 }, // Extra wide for handwriting
+          },
+        });
+
+        doc.setFontSize(10);
+        doc.text(
+          "Generated on: " + new Date().toLocaleDateString(),
+          20,
+          doc.lastAutoTable.finalY + 15,
+        );
+        doc.text(
+          "Receiver Signature: __________________",
+          220,
+          doc.lastAutoTable.finalY + 15,
+        );
+
+        doc.save(`Project_${p.name}_Finance.pdf`);
+      }
+
+      function deleteProject(name) {
+        if (!confirm("Are you sure you want to delete project: " + name + "?"))
+          return;
+        projects = projects.filter((p) => p.name !== name);
+        employees.forEach((e) => {
+          if (e.currentProject === name) e.currentProject = "";
+        });
+        saveToLocalStorage();
+        renderAdminPanel();
+      }
+
+      function renderProjectDashboard() {
+        const renderList = (status) => {
+          const filtered = projects.filter((p) => p.status === status);
+          if (filtered.length === 0) return `<p class="empty-state">None</p>`;
+          return filtered
+            .map((p) => {
+              const workers = employees.filter(
+                (e) => e.currentProject === p.name,
+              );
+              const finances = getProjectFinancials(p);
+              const showMoney = currentUserRole !== "Supervisor";
+
+              return `<div style="margin-bottom:15px; padding:8px; border-bottom:1px solid #eee;">
+                                        <strong>${p.name}</strong> <small>(${p.company || "No Company"})</small>
+                                        ${showMoney ? `<div class="money-tag">Proj No: ${p.invoice || "N/A"} | Total: ${formatCurrency(finances.totalGenerated)} | Rec: ${formatCurrency(finances.totalReceived)} | <span class="money-left">Left: ${formatCurrency(finances.settlement)}</span></div>` : ""}
+                                        ${status === "running" ? `<small>${workers.length}/10 Workers: ${workers.map((w) => w.name).join(", ")}</small>` : ""}
+                                    </div>`;
+            })
+            .join("");
+        };
+
+        document.getElementById("listRunning").innerHTML =
+          renderList("running");
+        document.getElementById("listUpcoming").innerHTML =
+          renderList("upcoming");
+        document.getElementById("listCompleted").innerHTML =
+          renderList("completed");
+      }
+
+      function renderAdminPanel() {
+        const pList = document.getElementById("adminProjectListBody");
+        pList.innerHTML =
+          projects.length === 0
+            ? '<tr><td colspan="4">No projects</td></tr>'
+            : projects
+                .map((p) => {
+                  const finances = getProjectFinancials(p);
+                  const generatedHistory = ensureArray(p.generatedPayments)
+                    .slice()
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .map(
+                      (entry) =>
+                        `<li>${formatDateDisplay(entry.date)} - ${formatCurrency(entry.amount)}${entry.note ? ` (${entry.note})` : ""}</li>`,
+                    )
+                    .join("");
+                  const receivedHistory = ensureArray(p.receivedPayments)
+                    .slice()
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .map(
+                      (entry) =>
+                        `<li>${formatDateDisplay(entry.date)} - ${formatCurrency(entry.amount)}${entry.mode ? ` via ${entry.mode}` : ""}${entry.note ? ` (${entry.note})` : ""}</li>`,
+                    )
+                    .join("");
+
+                  return `
+                                <tr>
+                                    <td class="project-report-cell">
+                                        <b>#${p.invoice || "N/A"}</b> | <b>${p.name}</b><br>
+                                        Company: ${p.company || "-"}<br>
+                                        <div style="margin-top:10px;"><b>Payment Generated Records</b></div>
+                                        ${
+                                          generatedHistory
+                                            ? `<ul class="project-ledger-list">${generatedHistory}</ul>`
+                                            : `<div class="money-tag">No generated payment records.</div>`
+                                        }
+                                        <div style="margin-top:10px;"><b>Payment Received Records</b></div>
+                                        ${
+                                          receivedHistory
+                                            ? `<ul class="project-ledger-list">${receivedHistory}</ul>`
+                                            : `<div class="money-tag">No client payment records.</div>`
+                                        }
+                                    </td>
+                                    <td>
+                                        Total Generated: ${formatCurrency(finances.totalGenerated)}<br>
+                                        Total Received: ${formatCurrency(finances.totalReceived)}<br>
+                                        <b style="color:${finances.settlement > 0 ? "#c0392b" : "#27ae60"}">
+                                          Net Settlement: ${formatCurrency(Math.abs(finances.settlement))}
+                                        </b><br>
+                                        <small>
+                                          ${finances.settlement > 0 ? "To be received from client" : finances.settlement < 0 ? "Advance received" : "Account settled"}
+                                        </small>
+                                    </td>
+                                    <td style="text-transform:capitalize">
+                                        ${p.status}
+                                    </td>
+                                    <td>
+                                        <button class="btn-status" onclick="changeStatus('${p.name}', 'running')">R</button>
+                                        <button class="btn-status" onclick="changeStatus('${p.name}', 'upcoming')">U</button>
+                                        <button class="btn-status" onclick="changeStatus('${p.name}', 'completed')">C</button>
+                                        <button class="btn-edit" onclick="editProject('${p.name}')">✏️</button>
+                                        <button class="btn-print" onclick="generateProjectPDF('${p.name}', true)">Print</button>
+                                        <button class="btn-del" onclick="deleteProject('${p.name}')">×</button>
+                                    </td>
+                                </tr>
+                            `;
+                })
+                .join("");
+
+        const eList = document.getElementById("adminEmployeeListBody");
+        eList.innerHTML =
+          employees.length === 0
+            ? '<tr><td colspan="9">No employees</td></tr>'
+            : employees
+                .map(
+                  (emp) => `
+                                <tr>
+                                    <td>${emp.id}</td>
+                                    <td>
+                                        ${emp.photo ? `<img src="${emp.photo}" style="width:40px; height:40px; object-fit:cover; border-radius:4px; cursor:pointer;" onclick="window.open(this.src)">` : "No Photo"}
+                                    </td>
+                                    <td>${emp.name}</td>
+                                    <td>${emp.age || "-"}</td>
+                                    <td>${emp.contact || "-"}</td>
+                                    <td>
+                                        ${emp.bankName || "N/A"}<br>
+                                        <small>A/C: ${emp.account || "-"}</small><br>
+                                        <small>IFSC: ${emp.ifsc || "-"}</small>
+                                    </td>
+                                    <td>${emp.currentProject || "Unassigned"}</td>
+                                    <td>
+                                        ${emp.aadhar ? `<img src="${emp.aadhar}" style="width:60px; height:40px; object-fit:contain; border:1px solid #ddd; cursor:pointer;" onclick="window.open(this.src)">` : "No Aadhar"}
+                                    </td>
+                                    <td>
+                                        <button class="btn-edit" onclick="editEmployee('${emp.id}')">✏️</button>
+                                        <button class="btn-del" onclick="deleteEmployee('${emp.id}')">Remove</button>
+                                    </td>
+                                </tr>
+                            `,
+                )
+                .join("");
+
+        const dropdown = document.getElementById("adminManualEmp");
+        dropdown.innerHTML =
+          '<option value="">Select Employee</option>' +
+          employees
+            .map((e) => `<option value="${e.id}">${e.name}</option>`)
+            .join("");
+      }
+
+      function editProject(name) {
+        const p = projects.find((project) => project.name === name);
+        if (!p) return;
+
+        document.getElementById("editProjectOriginalName").value = p.name;
+        document.getElementById("newProjInvoice").value = p.invoice || "";
+        document.getElementById("newProjCompany").value = p.company || "";
+        document.getElementById("newProjectName").value = p.name;
+        document.getElementById("newProjectStatus").value = p.status;
+        seedProjectPaymentForm(p);
+
+        document.getElementById("projectFormTitle").innerText =
+          "Edit Project: " + p.name;
+        document.getElementById("projectSubmitBtn").innerText =
+          "Update Project";
+        document.getElementById("projectSubmitBtn").onclick = updateProjectData;
+        document.getElementById("projectCancelBtn").style.display =
+          "inline-block";
+
+        document
+          .getElementById("projectFormContainer")
+          .scrollIntoView({ behavior: "smooth" });
+      }
+
+      function cancelProjectEdit() {
+        [
+          "newProjInvoice",
+          "newProjCompany",
+          "newProjectName",
+          "editProjectOriginalName",
+        ].forEach((id) => (document.getElementById(id).value = ""));
+        document.getElementById("newProjGenDate").value = "";
+        document.getElementById("newProjPayDate").value = "";
+        document.getElementById("newProjPayMode").value = "";
+        document.getElementById("newProjTotal").value = "";
+        document.getElementById("newProjReceived").value = "";
+        seedProjectPaymentForm();
+        document.getElementById("projectFormTitle").innerText =
+          "Create New Project";
+        document.getElementById("projectSubmitBtn").innerText = "Add Project";
+        document.getElementById("projectSubmitBtn").onclick = addProject;
+        document.getElementById("projectCancelBtn").style.display = "none";
+      }
+
+      function updateProjectData() {
+        const originalName = document.getElementById(
+          "editProjectOriginalName",
+        ).value;
+        const newName = document.getElementById("newProjectName").value.trim();
+        const { generatedPayments, receivedPayments } =
+          collectProjectPaymentsFromForm();
+
+        const projectIndex = projects.findIndex((p) => p.name === originalName);
+        if (projectIndex === -1) return;
+
+        const existingProject = normalizeProject(projects[projectIndex]);
+        projects[projectIndex] = {
+          ...existingProject,
+          invoice: document.getElementById("newProjInvoice").value.trim(),
+          company: document.getElementById("newProjCompany").value.trim(),
+          name: newName,
+          genDate: generatedPayments[0]?.date || "",
+          payDate: receivedPayments[0]?.date || "",
+          payMode: receivedPayments[0]?.mode || "",
+          status: document.getElementById("newProjectStatus").value,
+          generatedPayments,
+          receivedPayments,
+        };
+        syncProjectTotals(projects[projectIndex]);
+        document.getElementById("newProjTotal").value =
+          projects[projectIndex].totalAmt || 0;
+        document.getElementById("newProjReceived").value =
+          projects[projectIndex].recAmt || 0;
+
+        if (originalName !== newName) {
+          employees.forEach((emp) => {
+            if (emp.currentProject === originalName) {
+              emp.currentProject = newName;
+            }
+          });
+        }
+
+        saveToLocalStorage();
+        cancelProjectEdit();
+        renderAdminPanel();
+        renderProjectDashboard();
+        alert("Project updated successfully!");
+      }
+
+      function addProject() {
+        const invoice = document.getElementById("newProjInvoice").value.trim();
+        const company = document.getElementById("newProjCompany").value.trim();
+        const name = document.getElementById("newProjectName").value.trim();
+        const { generatedPayments, receivedPayments } =
+          collectProjectPaymentsFromForm();
+        const status = document.getElementById("newProjectStatus").value;
+
+        if (name && !projects.find((p) => p.name === name)) {
+          const project = {
+            invoice,
+            company,
+            name,
+            genDate: generatedPayments[0]?.date || "",
+            payDate: receivedPayments[0]?.date || "",
+            payMode: receivedPayments[0]?.mode || "",
+            status,
+            generatedPayments,
+            receivedPayments,
+          };
+
+          syncProjectTotals(project);
+          document.getElementById("newProjTotal").value = project.totalAmt || 0;
+          document.getElementById("newProjReceived").value =
+            project.recAmt || 0;
+          projects.push(project);
+
+          ["newProjInvoice", "newProjCompany", "newProjectName"].forEach(
+            (id) => (document.getElementById(id).value = ""),
+          );
+          document.getElementById("newProjGenDate").value = "";
+          document.getElementById("newProjPayDate").value = "";
+          document.getElementById("newProjPayMode").value = "";
+          document.getElementById("newProjTotal").value = "";
+          document.getElementById("newProjReceived").value = "";
+          seedProjectPaymentForm();
+
+          saveToLocalStorage();
+          renderAdminPanel();
+          renderProjectDashboard();
+        } else {
+          alert("Enter a unique project name");
+        }
+      }
+
+      function recordClientPayment(projectName) {
+        const project = projects.find((proj) => proj.name === projectName);
+        if (!project) return alert("Project not found");
+
+        const amount = parseFloat(
+          prompt("Enter payment received amount from client:", ""),
+        );
+        if (!amount || amount <= 0)
+          return alert("Please enter a valid amount.");
+
+        const date =
+          prompt(
+            "Enter payment received date (YYYY-MM-DD):",
+            getTodayISODate(),
+          ) || getTodayISODate();
+        const mode = prompt("Enter payment mode:", "Bank Transfer") || "";
+        const note = prompt("Add note (optional):", "") || "";
+
+        project.receivedPayments.push({
+          date,
+          amount,
+          mode,
+          note,
+          type: "received",
+          isOpening: false,
+        });
+        syncProjectTotals(project);
+        saveToLocalStorage();
+        renderAdminPanel();
+        renderProjectDashboard();
+      }
+
+      function addGeneratedPayment(projectName) {
+        const project = projects.find((proj) => proj.name === projectName);
+        if (!project) return alert("Project not found");
+
+        const amount = parseFloat(
+          prompt("Enter additional generated payment amount:", ""),
+        );
+        if (!amount || amount <= 0)
+          return alert("Please enter a valid amount.");
+
+        const date =
+          prompt(
+            "Enter generated payment date (YYYY-MM-DD):",
+            getTodayISODate(),
+          ) || getTodayISODate();
+        const note = prompt("Add note (optional):", "") || "";
+
+        project.generatedPayments.push({
+          date,
+          amount,
+          note,
+          type: "generated",
+          isOpening: false,
+        });
+        syncProjectTotals(project);
+        saveToLocalStorage();
+        renderAdminPanel();
+        renderProjectDashboard();
+      }
+
+      function generateProjectPDF(projectName, shouldPrint = false) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF("l");
+        const p = projects.find((proj) => proj.name === projectName);
+
+        if (!p) return alert("Project not found");
+
+        const finances = getProjectFinancials(p);
+        const ledger = getProjectLedger(p);
+        const settlementLabel =
+          finances.settlement > 0
+            ? "Amount to be received from client"
+            : finances.settlement < 0
+              ? "Advance already received"
+              : "Account settled";
+
+        doc.setFontSize(22);
+        doc.setTextColor(44, 62, 80);
+        doc.text(`RAM PRAKASH INTERIORS - ${p.company || "N/A"}`, 145, 15, {
+          align: "center",
+        });
+
+        doc.setFontSize(11);
+        doc.setTextColor(0);
+        doc.text(`Project: ${p.name}`, 20, 30);
+        doc.text(`Company: ${p.company || "N/A"}`, 20, 37);
+        doc.text(`System Proj No: ${p.invoice || "N/A"}`, 20, 44);
+        doc.text(`Status: ${p.status || "N/A"}`, 20, 51);
+
+        doc.autoTable({
+          startY: 58,
+          head: [
+            [
+              "Proj No",
+              "Project Name",
+              "Total Generated",
+              "Total Received",
+              "Net Settlement",
+              "Remark",
+            ],
+          ],
+          body: [
+            [
+              p.invoice || "N/A",
+              p.name,
+              formatCurrency(finances.totalGenerated),
+              formatCurrency(finances.totalReceived),
+              formatCurrency(Math.abs(finances.settlement)),
+              settlementLabel,
+            ],
+          ],
+          theme: "grid",
+          headStyles: { fillColor: [44, 62, 80] },
+        });
+
+        const ledgerTable = ledger.map((entry) => [
+          formatDateDisplay(entry.date),
+          entry.type,
+          formatCurrency(entry.amount),
+          entry.mode,
+          entry.note,
+        ]);
+
+        if (ledgerTable.length === 0) {
+          ledgerTable.push([
+            "N/A",
+            "No records found",
+            formatCurrency(0),
+            "-",
+            "-",
+          ]);
+        }
+
+        doc.autoTable({
+          startY: doc.lastAutoTable.finalY + 12,
+          head: [["Date", "Entry Type", "Amount", "Mode", "Note"]],
+          body: ledgerTable,
+          theme: "grid",
+          headStyles: { fillColor: [26, 188, 156] },
+        });
+
+        doc.autoTable({
+          startY: doc.lastAutoTable.finalY + 10,
+          head: [["Settlement Summary", "Amount"]],
+          body: [
+            [
+              "Total Payment Generated",
+              formatCurrency(finances.totalGenerated),
+            ],
+            ["Total Payment Received", formatCurrency(finances.totalReceived)],
+            [settlementLabel, formatCurrency(Math.abs(finances.settlement))],
+          ],
+          theme: "grid",
+          headStyles: { fillColor: [44, 62, 80] },
+        });
+
+        doc.setFontSize(10);
+        doc.text(
+          "Generated on: " + new Date().toLocaleDateString(),
+          20,
+          doc.lastAutoTable.finalY + 15,
+        );
+        doc.text(
+          "Receiver Signature: __________________",
+          220,
+          doc.lastAutoTable.finalY + 15,
+        );
+
+        if (shouldPrint) {
+          const blobUrl = doc.output("bloburl");
+          const printWindow = window.open(blobUrl, "_blank");
+          if (printWindow) {
+            printWindow.onload = () => printWindow.print();
+          }
+          return;
+        }
+
+        doc.save(`Project_${p.name}_Finance.pdf`);
+      }
+
+      function changeStatus(name, newStatus) {
+        const proj = projects.find((p) => p.name === name);
+        if (proj) {
+          proj.status = newStatus;
+          if (newStatus === "completed" || newStatus === "upcoming") {
+            employees.forEach((e) => {
+              if (e.currentProject === name) e.currentProject = "";
+            });
+          }
+          saveToLocalStorage();
+          renderAdminPanel();
+          renderProjectDashboard();
+        }
+      }
+
+      function deleteProject(name) {
+        if (!confirm("Are you sure you want to delete project: " + name + "?"))
+          return;
+        projects = projects.filter((p) => p.name !== name);
+        employees.forEach((e) => {
+          if (e.currentProject === name) e.currentProject = "";
+        });
+        saveToLocalStorage();
+        renderAdminPanel();
+        renderProjectDashboard();
+      }
+
+      async function addEmployee() {
+        const bankName = document.getElementById("newEmpBankName").value.trim();
+        const ifsc = document.getElementById("newEmpIFSC").value.trim();
+        const id = document.getElementById("newEmpId").value.trim();
+        const name = document.getElementById("newEmpName").value.trim();
+        const age = document.getElementById("newEmpAge").value;
+        const contact = document.getElementById("newEmpContact").value;
+        const account = document.getElementById("newEmpAccount").value.trim();
+        const photoFile = document.getElementById("newEmpPhoto").files[0];
+        const aadharFile = document.getElementById("newEmpAadhar").files[0];
+
+        if (id && name && age) {
+          if (employees.some((e) => e.id === id)) {
+            alert("This Employee ID already exists. Please use a unique ID.");
+            return;
+          }
+
+          let photoData = null;
+          let aadharData = null;
+
+          if (photoFile) photoData = await getBase64(photoFile);
+          if (aadharFile) aadharData = await getBase64(aadharFile);
+
+          employees.push({
+            id: id,
+            name: name,
+            age: parseInt(age),
+            contact: contact,
+            account: account,
+            bankName: bankName,
+            ifsc: ifsc,
+            photo: photoData,
+            aadhar: aadharData,
+            currentProject: "",
+            attendanceHistory: [],
+            payments: [],
+          });
+
+          document.getElementById("newEmpId").value = "";
+          document.getElementById("newEmpName").value = "";
+          document.getElementById("newEmpAge").value = "";
+          document.getElementById("newEmpContact").value = "";
+          document.getElementById("newEmpAccount").value = "";
+          document.getElementById("newEmpBankName").value = "";
+          document.getElementById("newEmpIFSC").value = "";
+          document.getElementById("newEmpPhoto").value = "";
+          document.getElementById("newEmpAadhar").value = "";
+
+          saveToLocalStorage();
+          renderAdminPanel();
+          alert("Employee Registered Successfully!");
+        } else {
+          alert("Please enter ID, Name, and Age.");
+        }
+      }
+
+      function editEmployee(id) {
+        const emp = employees.find((e) => e.id === id);
+        if (!emp) return;
+
+        // Correctly set the ID tracking field and UI field
+        document.getElementById("editEmployeeOriginalId").value = emp.id;
+
+        const idField = document.getElementById("newEmpId");
+        idField.value = emp.id;
+        idField.disabled = true;
+
+        document.getElementById("newEmpName").value = emp.name;
+        document.getElementById("newEmpAge").value = emp.age || "";
+        document.getElementById("newEmpContact").value = emp.contact || "";
+        document.getElementById("newEmpAccount").value = emp.account || "";
+        document.getElementById("newEmpBankName").value = emp.bankName || "";
+        document.getElementById("newEmpIFSC").value = emp.ifsc || "";
+
+        document.getElementById("employeeFormTitle").innerText =
+          "Edit Employee: " + emp.name;
+        document.getElementById("employeeSubmitBtn").innerText =
+          "Update Employee";
+        document.getElementById("employeeSubmitBtn").onclick =
+          updateEmployeeData;
+        document.getElementById("employeeCancelBtn").style.display =
+          "inline-block";
+
+        document
+          .getElementById("employeeFormContainer")
+          .scrollIntoView({ behavior: "smooth" });
+      }
+
+      function cancelEmployeeEdit() {
+        const idField = document.getElementById("newEmpId");
+        idField.disabled = false;
+        idField.value = "";
+
+        document.getElementById("editEmployeeOriginalId").value = "";
+
+        // Added new bank field IDs to this list to ensure they clear on cancel
+        [
+          "newEmpName",
+          "newEmpAge",
+          "newEmpContact",
+          "newEmpAccount",
+          "newEmpBankName",
+          "newEmpIFSC",
+          "newEmpPhoto",
+          "newEmpAadhar",
+        ].forEach((id) => (document.getElementById(id).value = ""));
+
+        document.getElementById("employeeFormTitle").innerText =
+          "Register New Employee";
+        document.getElementById("employeeSubmitBtn").innerText = "Add Employee";
+        document.getElementById("employeeSubmitBtn").onclick = addEmployee;
+        document.getElementById("employeeCancelBtn").style.display = "none";
+      }
+
+      async function updateEmployeeData() {
+        const originalId = document.getElementById(
+          "editEmployeeOriginalId",
+        ).value;
+        const empIndex = employees.findIndex((e) => e.id === originalId);
+
+        if (empIndex === -1) {
+          alert("Error: Employee not found.");
+          return;
+        }
+
+        const photoFile = document.getElementById("newEmpPhoto").files[0];
+        const aadharFile = document.getElementById("newEmpAadhar").files[0];
+
+        let photoData = employees[empIndex].photo;
+        let aadharData = employees[empIndex].aadhar;
+
+        if (photoFile) photoData = await getBase64(photoFile);
+        if (aadharFile) aadharData = await getBase64(aadharFile);
+
+        employees[empIndex] = {
+          ...employees[empIndex],
+          name: document.getElementById("newEmpName").value.trim(),
+          age: parseInt(document.getElementById("newEmpAge").value),
+          contact: document.getElementById("newEmpContact").value.trim(),
+          account: document.getElementById("newEmpAccount").value.trim(),
+          bankName: document.getElementById("newEmpBankName").value.trim(),
+          ifsc: document.getElementById("newEmpIFSC").value.trim(),
+          photo: photoData,
+          aadhar: aadharData,
+        };
+
+        saveToLocalStorage();
+        cancelEmployeeEdit();
+        renderAdminPanel();
+        alert("Employee updated successfully!");
+      }
+
+      function deleteEmployee(id) {
+        if (confirm("Remove this employee?")) {
+          employees = employees.filter((e) => e.id !== id);
+          saveToLocalStorage();
+          renderAdminPanel();
+        }
+      }
+
+      function updateProject(empId, newProj) {
+        const emp = employees.find((e) => e.id === empId);
+        const count = employees.filter(
+          (e) => e.currentProject === newProj,
+        ).length;
+        if (newProj !== "" && count >= 10) {
+          alert("Project is Full (Max 10)!");
+          renderEmployeeList();
+          return;
+        }
+        emp.currentProject = newProj;
+        saveToLocalStorage();
+      }
+
+      function editEmpName(id, newName) {
+        const emp = employees.find((e) => e.id === id);
+        if (emp) {
+          emp.name = newName;
+          saveToLocalStorage();
+        }
+      }
+
+      // --- EXPENSE TRACKER LOGIC ---
+      function renderExpenses() {
+        const filter = document.getElementById("expenseMonthFilter").value;
+        const tbody = document.getElementById("expenseTableBody");
+        const tfoot = document.getElementById("expenseTableFoot");
+        tbody.innerHTML = "";
+
+        const filtered = expenseRecords
+          .filter((r) => r.date.startsWith(filter))
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        let totalCEO = 0,
+          totalSup = 0,
+          totalAdmin = 0;
+
+        filtered.forEach((rec) => {
+          const globalIdx = expenseRecords.indexOf(rec);
+          const isAdmin = currentUserRole === "Administrator";
+          const isCEO = currentUserRole === "CEO";
+          const isSup = currentUserRole === "Supervisor";
+
+          // Logic: Disable if row is locked for that specific role OR if the user is not that role
+          const ceoDisabled =
+            (!isAdmin && !isCEO) || (rec.ceoLocked && !isAdmin);
+          const supDisabled =
+            (!isAdmin && !isSup) || (rec.supLocked && !isAdmin);
+          const admDisabled = !isAdmin || (rec.admLocked && !isAdmin);
+
+          tbody.innerHTML += `
+                  <tr style="background-color: white;">
+                      <td style="padding: 12px; border: 1px solid #ddd;">
+                          <input type="date" value="${rec.date}" onchange="updateExpense(${globalIdx}, 'date', this.value)" ${!isAdmin ? "disabled" : ""} style="padding: 5px; border: 1px solid #ccc; border-radius: 4px;">
+                      </td>
+                      <td style="padding: 12px; border: 1px solid #ddd; background: ${isCEO ? "#e8f8f5" : "transparent"}">
+                          <input type="number" value="${rec.ceo || 0}" onchange="updateExpense(${globalIdx}, 'ceo', this.value)" ${ceoDisabled ? "disabled" : ""} style="width: 70px; padding: 5px; border: 1px solid #1abc9c; border-radius: 4px;">
+                          <input type="text" placeholder="Rec. #" value="${rec.ceoRec || ""}" onchange="updateExpense(${globalIdx}, 'ceoRec', this.value)" ${ceoDisabled ? "disabled" : ""} style="width: 70px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                          ${isCEO && !rec.ceoLocked ? `<button onclick="saveAndLockExpense(${globalIdx}, 'ceoLocked')" style="font-size:10px; background:#27ae60; color:white; border:none; border-radius:3px; cursor:pointer;">Save</button>` : ""}
+                          ${rec.ceoLocked ? "<span>🔒</span>" : ""}
+                      </td>
+                      <td style="padding: 12px; border: 1px solid #ddd; background: ${isSup ? "#e8f8f5" : "transparent"}">
+                          <input type="number" value="${rec.sup || 0}" onchange="updateExpense(${globalIdx}, 'sup', this.value)" ${supDisabled ? "disabled" : ""} style="width: 70px; padding: 5px; border: 1px solid #1abc9c; border-radius: 4px;">
+                          <input type="text" placeholder="Rec. #" value="${rec.supRec || ""}" onchange="updateExpense(${globalIdx}, 'supRec', this.value)" ${supDisabled ? "disabled" : ""} style="width: 70px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                          ${isSup && !rec.supLocked ? `<button onclick="saveAndLockExpense(${globalIdx}, 'supLocked')" style="font-size:10px; background:#27ae60; color:white; border:none; border-radius:3px; cursor:pointer;">Save</button>` : ""}
+                          ${rec.supLocked ? "<span>🔒</span>" : ""}
+                      </td>
+                      <td style="padding: 12px; border: 1px solid #ddd; background: ${isAdmin ? "#e8f8f5" : "transparent"}">
+                          <input type="number" value="${rec.adm || 0}" onchange="updateExpense(${globalIdx}, 'adm', this.value)" ${admDisabled ? "disabled" : ""} style="width: 70px; padding: 5px; border: 1px solid #1abc9c; border-radius: 4px;">
+                          <input type="text" placeholder="Rec. #" value="${rec.admRec || ""}" onchange="updateExpense(${globalIdx}, 'admRec', this.value)" ${admDisabled ? "disabled" : ""} style="width: 80px; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
+                          ${isAdmin && !rec.admLocked ? `<button onclick="saveAndLockExpense(${globalIdx}, 'admLocked')" style="font-size:10px; background:#27ae60; color:white; border:none; border-radius:3px; cursor:pointer;">Save</button>` : ""}
+                          ${rec.admLocked ? "<span>🔒</span>" : ""}
+                      </td>
+                      <td style="text-align:center">
+                          ${isAdmin ? `<button onclick="deleteExpense(${globalIdx})" style="background: #c0392b; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">×</button>` : "-"}
+                      </td>
+                  </tr>`;
+          totalCEO += Number(rec.ceo || 0);
+          totalSup += Number(rec.sup || 0);
+          totalAdmin += Number(rec.adm || 0);
+        });
+
+        tfoot.innerHTML = `<tr><td style="font-weight:bold;">TOTALS</td><td>₹${totalCEO}</td><td>₹${totalSup}</td><td>₹${totalAdmin}</td><td></td></tr>`;
+      }
+
+      function saveAndLockExpense(idx, lockField) {
+        if (
+          confirm(
+            "Are you sure? Once saved, your column for this row will be locked.",
+          )
+        ) {
+          expenseRecords[idx][lockField] = true;
+          saveToLocalStorage(); // Firebase Sync
+          renderExpenses();
+          alert("Your entry has been saved and locked.");
+        }
+      }
+
+      function addExpenseRow() {
+        const today = new Date().toISOString().split("T")[0];
+        expenseRecords.push({
+          date: today,
+          ceo: 0,
+          ceoRec: "",
+          ceoLocked: false,
+          sup: 0,
+          supRec: "",
+          supLocked: false,
+          adm: 0,
+          admRec: "",
+          admLocked: false,
+        });
+        saveToLocalStorage();
+        renderExpenses();
+      }
+
+      function updateExpense(idx, field, val) {
+        expenseRecords[idx][field] = val;
+        saveToLocalStorage();
+      }
+
+      function deleteExpense(idx) {
+        if (confirm("Delete this expense entry?")) {
+          expenseRecords.splice(idx, 1);
+          saveToLocalStorage();
+          renderExpenses();
+        }
+      }
+
+      function generateExpensePDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        const filter = document.getElementById("expenseMonthFilter").value;
+        if (!filter) {
+          alert("Please select a month first.");
+          return;
+        }
+
+        const [year, month] = filter.split("-");
+        const monthName = new Date(year, month - 1).toLocaleString("default", {
+          month: "long",
+        });
+
+        const filtered = expenseRecords
+          .filter((r) => r.date.startsWith(filter))
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (filtered.length === 0) {
+          alert("No data found for the selected month.");
+          return;
+        }
+
+        doc.setFontSize(18);
+        doc.setTextColor(44, 62, 80);
+        doc.text("RAM PRAKASH INTERIORS", 105, 15, { align: "center" });
+
+        doc.setFontSize(14);
+        doc.text(
+          `Non-Operating Expense Report: ${monthName} ${year}`,
+          105,
+          25,
+          {
+            align: "center",
+          },
+        );
+
+        let totalCEO = 0,
+          totalSup = 0,
+          totalAdmin = 0;
+        const tableData = filtered.map((rec) => {
+          totalCEO += Number(rec.ceo);
+          totalSup += Number(rec.sup);
+          totalAdmin += Number(rec.adm);
+          return [
+            rec.date,
+            `Rs. ${rec.ceo} (${rec.ceoRec || "-"})`,
+            `Rs. ${rec.sup} (${rec.supRec || "-"})`,
+            `Rs. ${rec.adm} (${rec.admRec || "-"})`,
+          ];
+        });
+
+        tableData.push([
+          {
+            content: "TOTALS",
+            styles: { fontStyle: "bold", fillColor: [241, 196, 15] },
+          },
+          {
+            content: `Rs. ${totalCEO}`,
+            styles: { fontStyle: "bold", fillColor: [241, 196, 15] },
+          },
+          {
+            content: `Rs. ${totalSup}`,
+            styles: { fontStyle: "bold", fillColor: [241, 196, 15] },
+          },
+          {
+            content: `Rs. ${totalAdmin}`,
+            styles: { fontStyle: "bold", fillColor: [241, 196, 15] },
+          },
+        ]);
+
+        doc.autoTable({
+          startY: 35,
+          head: [
+            [
+              "Date",
+              "CEO (Exp/Rec)",
+              "Supervisor (Exp/Rec)",
+              "Admin (Exp/Rec)",
+            ],
+          ],
+          body: tableData,
+          theme: "grid",
+          headStyles: { fillColor: [44, 62, 80], halign: "center" },
+        });
+
+        doc.save(`Expense_Report_${monthName}_${year}.pdf`);
+      }
+
+      // --- MATERIALS LOGIC ---
+      function renderMaterials() {
+        const filter = document.getElementById("materialsMonthFilter").value;
+        const tbody = document.getElementById("materialsTableBody");
+        const tfoot = document.getElementById("materialsTableFoot");
+        tbody.innerHTML = "";
+
+        const filtered = materialRecords
+          .filter((r) => r.date.startsWith(filter))
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        let totalAmt = 0;
+
+        filtered.forEach((rec) => {
+          const globalIdx = materialRecords.indexOf(rec);
+          const isAdmin = currentUserRole === "Administrator";
+
+          // Logic: Lock row for CEO/Supervisor only AFTER they click save.
+          const isLocked = !isAdmin && rec.locked;
+
+          tbody.innerHTML += `
+                                    <tr style="background-color: white;">
+                                        <td><input type="date" value="${rec.date}" onchange="updateMaterial(${globalIdx}, 'date', this.value)" ${isLocked ? "disabled" : ""} style="width:100%"></td>
+                                        <td><input type="text" value="${rec.itemName || ""}" onchange="updateMaterial(${globalIdx}, 'itemName', this.value)" ${isLocked ? "disabled" : ""} style="width:100%"></td>
+                                        <td><input type="text" value="${rec.qty || ""}" onchange="updateMaterial(${globalIdx}, 'qty', this.value)" ${isLocked ? "disabled" : ""} style="width:100%"></td>
+                                        <td><input type="text" value="${rec.projectName || ""}" onchange="updateMaterial(${globalIdx}, 'projectName', this.value)" ${isLocked ? "disabled" : ""} style="width:100%"></td>
+                                        <td><input type="text" value="${rec.supplier || ""}" onchange="updateMaterial(${globalIdx}, 'supplier', this.value)" ${isLocked ? "disabled" : ""} style="width:100%"></td>
+                                        <td><input type="text" value="${rec.receiver || ""}" onchange="updateMaterial(${globalIdx}, 'receiver', this.value)" ${isLocked ? "disabled" : ""} style="width:100%"></td>
+                                        <td><input type="number" value="${rec.amount || 0}" onchange="updateMaterial(${globalIdx}, 'amount', this.value)" ${isLocked ? "disabled" : ""} style="width:100%"></td>
+                                        <td>
+                                            <input type="file" onchange="uploadMaterialBill(${globalIdx}, this)" ${isLocked ? "disabled" : ""} style="font-size:0.7em">
+                                            ${rec.bill ? `<br><small style="color:#16a085; font-weight:bold;">Bill Uploaded</small>` : ""}
+                                        </td>
+                                        <td style="text-align:center">
+                                            ${!isLocked ? `<button onclick="saveAndLockMaterial(${globalIdx})" style="background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Save</button>` : "🔒"}
+                                            ${isAdmin && rec.bill ? `<button onclick="viewMaterialBill(${globalIdx})" style="background:#2980b9; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">View Bill</button>` : ""}
+                                            ${isAdmin ? `<button onclick="deleteMaterial(${globalIdx})" style="background:#c0392b; color:white; border:none; border-radius:4px; cursor:pointer;">×</button>` : ""}
+                                        </td>
+                                    </tr>`;
+          totalAmt += Number(rec.amount || 0);
+        });
+
+        tfoot.innerHTML = `<tr><td colspan="6" style="text-align:right">PAGE TOTAL</td><td>₹${totalAmt.toLocaleString()}</td><td colspan="2"></td></tr>`;
+      }
+
+      function addMaterialRow() {
+        const today = new Date().toISOString().split("T")[0];
+        materialRecords.push({
+          date: today,
+          itemName: "",
+          qty: "",
+          projectName: "",
+          supplier: "",
+          receiver: "",
+          amount: 0,
+          bill: null,
+          locked: false, // New field to handle the lock state
+        });
+        saveToLocalStorage();
+        renderMaterials();
+      }
+
+      function updateMaterial(idx, field, val) {
+        materialRecords[idx][field] = val;
+        saveToLocalStorage();
+      }
+
+      function saveAndLockMaterial(idx) {
+        materialRecords[idx].locked = true;
+        saveToLocalStorage();
+        renderMaterials();
+        alert("Row locked and details saved.");
+      }
+
+      async function uploadMaterialBill(idx, input) {
+        const file = input.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => {
+            materialRecords[idx].bill = reader.result;
+            materialRecords[idx].billName = file.name || "bill";
+            materialRecords[idx].billType = file.type || "";
+            saveToLocalStorage();
+            renderMaterials();
+          };
+        }
+      }
+
+      function deleteMaterial(idx) {
+        if (confirm("Delete this material record?")) {
+          materialRecords.splice(idx, 1);
+          saveToLocalStorage();
+          renderMaterials();
+        }
+      }
+
+      function viewMaterialBill(idx) {
+        const record = materialRecords[idx];
+        if (!record || !record.bill) {
+          alert("No bill uploaded for this record.");
+          return;
+        }
+
+        const openViewerWindow = (title, bodyHtml) => {
+          const viewer = window.open("", "_blank");
+          if (!viewer) {
+            alert("Popup blocked. Please allow popups and try again.");
+            return null;
+          }
+          viewer.document.write(`
+            <!doctype html>
+            <html>
+              <head>
+                <title>${title}</title>
+                <style>
+                  body { margin: 0; background: #1f2933; font-family: Arial, sans-serif; }
+                  .frame { width: 100vw; height: 100vh; border: 0; background: white; }
+                  .image-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; box-sizing: border-box; }
+                  img { max-width: 100%; max-height: calc(100vh - 32px); box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+                </style>
+              </head>
+              <body>${bodyHtml}</body>
+            </html>
+          `);
+          viewer.document.close();
+          return viewer;
+        };
+
+        const billType =
+          record.billType ||
+          (record.bill.startsWith("data:application/pdf")
+            ? "application/pdf"
+            : record.bill.startsWith("data:image/")
+              ? "image/*"
+              : "");
+
+        if (billType === "application/pdf") {
+          openViewerWindow(
+            record.billName || "Bill PDF",
+            `<iframe class="frame" src="${record.bill}"></iframe>`,
+          );
+          return;
+        }
+
+        if (
+          billType.startsWith("image/") ||
+          record.bill.startsWith("data:image/")
+        ) {
+          const img = new Image();
+          img.onload = () => {
+            const { jsPDF } = window.jspdf;
+            const orientation = img.width > img.height ? "l" : "p";
+            const doc = new jsPDF(orientation, "mm", "a4");
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 10;
+            const usableWidth = pageWidth - margin * 2;
+            const usableHeight = pageHeight - margin * 2;
+            const scale = Math.min(
+              usableWidth / img.width,
+              usableHeight / img.height,
+            );
+            const renderWidth = img.width * scale;
+            const renderHeight = img.height * scale;
+            const x = (pageWidth - renderWidth) / 2;
+            const y = (pageHeight - renderHeight) / 2;
+            const imageFormat = record.bill.includes("image/png")
+              ? "PNG"
+              : "JPEG";
+
+            doc.addImage(
+              record.bill,
+              imageFormat,
+              x,
+              y,
+              renderWidth,
+              renderHeight,
+            );
+            const pdfDataUrl = doc.output("datauristring");
+            openViewerWindow(
+              `${record.billName || "Bill"} PDF`,
+              `<iframe class="frame" src="${pdfDataUrl}"></iframe>`,
+            );
+          };
+          img.onerror = () => {
+            openViewerWindow(
+              record.billName || "Bill Image",
+              `<div class="image-wrap"><img src="${record.bill}" alt="Bill" /></div>`,
+            );
+          };
+          img.src = record.bill;
+          return;
+        }
+
+        alert("Unsupported bill format.");
+      }
+
+      function generateMaterialsPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF("l"); // Landscape orientation
+        const filter = document.getElementById("materialsMonthFilter").value;
+
+        if (!filter) return alert("Select a month first");
+
+        const filtered = materialRecords
+          .filter((r) => r.date.startsWith(filter))
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (filtered.length === 0) return alert("No records for this month");
+
+        // Calculate the total sum of the 'amount' column
+        const totalExpenditure = filtered.reduce(
+          (sum, r) => sum + (Number(r.amount) || 0),
+          0,
+        );
+
+        doc.setFontSize(18);
+        doc.text("RAM PRAKASH INTERIORS", 14, 15);
+        doc.setFontSize(12);
+        doc.text(`Materials Procurement Report - ${filter}`, 14, 22);
+
+        // Prepare table data
+        const body = filtered.map((r) => [
+          r.date,
+          r.itemName,
+          r.qty,
+          r.projectName,
+          r.supplier,
+          r.receiver,
+          `Rs. ${Number(r.amount).toLocaleString()}`,
+        ]);
+
+        // Add the Footer row for Total Calculation
+        body.push([
+          {
+            content: "TOTAL EXPENDITURE",
+            colSpan: 6,
+            styles: {
+              halign: "right",
+              fontStyle: "bold",
+              fillColor: [241, 196, 15],
+            },
+          },
+          {
+            content: `Rs. ${totalExpenditure.toLocaleString()}`,
+            styles: { fontStyle: "bold", fillColor: [241, 196, 15] },
+          },
+        ]);
+
+        doc.autoTable({
+          startY: 30,
+          head: [
+            [
+              "Date",
+              "Item",
+              "Qty",
+              "Project",
+              "Supplier",
+              "Receiver",
+              "Amount (INR)",
+            ],
+          ],
+          body: body,
+          theme: "grid",
+          headStyles: { fillColor: [44, 62, 80] },
+          styles: { fontSize: 9 },
+        });
+
+        doc.save(`Materials_Report_${filter}.pdf`);
+      }
+
+      window.onload = () => {
+        const savedRole = sessionStorage.getItem("rp_auth_role");
+        if (savedRole) {
+          currentUserRole = savedRole;
+          initApplication();
+        }
+      };
+    </script>
+  </body>
+</html>
+
