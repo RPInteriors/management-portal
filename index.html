@@ -56,6 +56,30 @@
         border-radius: 6px;
         box-sizing: border-box;
       }
+      .password-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 10px 0;
+      }
+      .password-wrap input[type="password"],
+      .password-wrap input[type="text"] {
+        margin: 0;
+        flex: 1;
+      }
+      .show-pass-label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.85em;
+        color: #34495e;
+        white-space: nowrap;
+      }
+      .show-pass-label input {
+        width: auto;
+        margin: 0;
+        padding: 0;
+      }
 
       .btn-login {
         background: #1abc9c;
@@ -461,11 +485,22 @@
           <option value="Administrator">Administrator</option>
           <option value="Supervisor">Supervisor</option>
         </select>
-        <input
-          type="password"
-          id="globalPassword"
-          placeholder="Enter Password"
-        />
+        <div class="password-wrap">
+          <input
+            type="password"
+            id="globalPassword"
+            placeholder="Enter Password"
+          />
+          <label class="show-pass-label">
+            <input
+              type="checkbox"
+              onchange="
+                togglePasswordVisibility('globalPassword', this.checked)
+              "
+            />
+            Show
+          </label>
+        </div>
         <button class="btn-login" onclick="handleGlobalLogin()">
           Unlock System
         </button>
@@ -492,11 +527,22 @@
       <div id="loginOverlay">
         <div class="login-box">
           <h2>Admin Verification</h2>
-          <input
-            type="password"
-            id="adminPassword"
-            placeholder="Confirm Admin Password"
-          />
+          <div class="password-wrap">
+            <input
+              type="password"
+              id="adminPassword"
+              placeholder="Confirm Admin Password"
+            />
+            <label class="show-pass-label">
+              <input
+                type="checkbox"
+                onchange="
+                  togglePasswordVisibility('adminPassword', this.checked)
+                "
+              />
+              Show
+            </label>
+          </div>
           <br /><br />
           <button class="btn-add" onclick="login()">Login</button>
           <button class="btn-del" onclick="closeLogin()">Cancel</button>
@@ -730,6 +776,70 @@
         </div>
 
         <div class="admin-form">
+          <h3>User Password Reset</h3>
+          <select id="resetUserRole">
+            <option value="">Select User Role</option>
+            <option value="CEO">CEO</option>
+            <option value="Administrator">Administrator</option>
+            <option value="Supervisor">Supervisor</option>
+          </select>
+          <div class="password-wrap">
+            <input
+              type="password"
+              id="resetUserOldPassword"
+              placeholder="Enter Old Password"
+            />
+            <label class="show-pass-label">
+              <input
+                type="checkbox"
+                onchange="
+                  togglePasswordVisibility('resetUserOldPassword', this.checked)
+                "
+              />
+              Show
+            </label>
+          </div>
+          <div class="password-wrap">
+            <input
+              type="password"
+              id="resetUserPassword"
+              placeholder="Enter New Password"
+            />
+            <label class="show-pass-label">
+              <input
+                type="checkbox"
+                onchange="
+                  togglePasswordVisibility('resetUserPassword', this.checked)
+                "
+              />
+              Show
+            </label>
+          </div>
+          <div class="password-wrap">
+            <input
+              type="password"
+              id="resetUserPasswordConfirm"
+              placeholder="Confirm New Password"
+            />
+            <label class="show-pass-label">
+              <input
+                type="checkbox"
+                onchange="
+                  togglePasswordVisibility(
+                    'resetUserPasswordConfirm',
+                    this.checked,
+                  )
+                "
+              />
+              Show
+            </label>
+          </div>
+          <button class="btn-add" onclick="resetUserPassword()">
+            Reset Password
+          </button>
+        </div>
+
+        <div class="admin-form">
           <h3>Project Financial & Status Management</h3>
           <table style="font-size: 0.85em">
             <thead>
@@ -949,11 +1059,16 @@
       let expenseRecords = [];
       let materialRecords = [];
       // --- MULTI-USER AUTH CONFIG ---
-      const USER_PROFILES = {
+      const DEFAULT_USER_PROFILES = {
         CEO: "im@ceo!26",
-        Administrator: "im_admin+85",
+        Administrator: "im_the_admin+85",
         Supervisor: "wise_supervisor%94",
       };
+      // Emergency recovery switch:
+      // Set this to true in code, reload once, and the hardcoded passwords above
+      // will overwrite the cloud passwords so you can regain access.
+      const FORCE_CODE_PASSWORDS = false;
+      let USER_PROFILES = { ...DEFAULT_USER_PROFILES };
 
       let currentUserRole = null;
 
@@ -1008,6 +1123,7 @@
             employees: employees,
             expenseRecords: expenseRecords,
             materialRecords: materialRecords,
+            userProfiles: USER_PROFILES,
           })
           .then(() => {
             console.log(
@@ -1017,6 +1133,24 @@
           .catch((error) => {
             console.error("Cloud Sync Error: ", error);
           });
+      }
+
+      function initUserProfilesSync() {
+        database.ref("portalData/userProfiles").on("value", (snapshot) => {
+          if (FORCE_CODE_PASSWORDS) return;
+          USER_PROFILES = {
+            ...DEFAULT_USER_PROFILES,
+            ...(snapshot.val() || {}),
+          };
+        });
+      }
+
+      function applyForcedCodePasswords() {
+        USER_PROFILES = { ...DEFAULT_USER_PROFILES };
+        database.ref("portalData/userProfiles").set(USER_PROFILES);
+        console.log(
+          "Emergency password reset applied from code. Set FORCE_CODE_PASSWORDS back to false after access is restored.",
+        );
       }
 
       // This function replaces loadFromLocalStorage to enable real-time cloud sync
@@ -1030,6 +1164,10 @@
             employees = data.employees || [];
             expenseRecords = data.expenseRecords || [];
             materialRecords = data.materialRecords || [];
+            USER_PROFILES = {
+              ...DEFAULT_USER_PROFILES,
+              ...(data.userProfiles || {}),
+            };
             normalizeProjectsData();
 
             // Automatically refresh the current page view with the new data
@@ -1078,6 +1216,48 @@
 
       function closeLogin() {
         document.getElementById("loginOverlay").style.display = "none";
+      }
+
+      function togglePasswordVisibility(inputId, shouldShow) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        input.type = shouldShow ? "text" : "password";
+      }
+
+      function resetUserPassword() {
+        const role = document.getElementById("resetUserRole").value;
+        const oldPassword = document.getElementById(
+          "resetUserOldPassword",
+        ).value;
+        const password = document.getElementById("resetUserPassword").value;
+        const confirmPassword = document.getElementById(
+          "resetUserPasswordConfirm",
+        ).value;
+
+        if (!role || !oldPassword || !password || !confirmPassword) {
+          alert("Please select a role and enter the new password twice.");
+          return;
+        }
+
+        if (USER_PROFILES[role] !== oldPassword) {
+          alert("Old password is incorrect.");
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          alert("New password and confirm password do not match.");
+          return;
+        }
+
+        USER_PROFILES[role] = password;
+        saveToLocalStorage();
+
+        document.getElementById("resetUserRole").value = "";
+        document.getElementById("resetUserOldPassword").value = "";
+        document.getElementById("resetUserPassword").value = "";
+        document.getElementById("resetUserPasswordConfirm").value = "";
+
+        alert(`${role} password updated successfully.`);
       }
 
       // --- NAVIGATION ---
@@ -3524,6 +3704,10 @@
       }
 
       window.onload = () => {
+        initUserProfilesSync();
+        if (FORCE_CODE_PASSWORDS) {
+          applyForcedCodePasswords();
+        }
         const savedRole = sessionStorage.getItem("rp_auth_role");
         if (savedRole) {
           currentUserRole = savedRole;
@@ -3533,4 +3717,3 @@
     </script>
   </body>
 </html>
-
