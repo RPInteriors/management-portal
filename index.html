@@ -93,6 +93,30 @@
         font-weight: bold;
         font-size: 1em;
       }
+      .auth-secondary-btn {
+        background: transparent;
+        color: #2c3e50;
+        border: 1px solid #cfd8dc;
+        padding: 10px 12px;
+        width: 100%;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95em;
+        margin-top: 10px;
+      }
+      .forgot-password-box {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid #e1e8ed;
+        text-align: left;
+      }
+      .forgot-password-box p {
+        margin: 0 0 10px;
+        font-size: 0.85em;
+        color: #5d6d7e;
+        line-height: 1.4;
+      }
 
       /* Main Content Container (Hidden by default) */
       #mainAppContent {
@@ -510,7 +534,6 @@
         </p>
       </div>
     </div>
-
     <div id="mainAppContent">
       <h1 class="header-title">RAM PRAKASH INTERIORS</h1>
 
@@ -836,18 +859,80 @@
             </label>
           </div>
 
-          <input type="text" id="resetUserOtp" placeholder="Enter Email OTP" />
-          <button
-            class="btn-add"
-            type="button"
-            style="background: #2980b9"
-            onclick="sendPasswordResetOtp()"
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
           >
-            Send Email OTP
-          </button>
-          <button class="btn-add" onclick="resetUserPassword()">
-            Reset Password
-          </button>
+            <input
+              type="text"
+              id="resetUserOtp"
+              placeholder="Enter Email OTP"
+              style="flex: 1; min-width: 220px"
+            />
+            <button
+              class="btn-add"
+              type="button"
+              style="background: #2980b9"
+              onclick="sendPasswordResetOtp()"
+            >
+              Send Email OTP
+            </button>
+            <button class="btn-add" onclick="resetUserPassword()">
+              Reset Password
+            </button>
+            <button
+              class="btn-add"
+              type="button"
+              style="background: #8e44ad"
+              onclick="toggleChangePasswordForgotBox()"
+            >
+              Forgot Password
+            </button>
+          </div>
+          <div
+            id="changePasswordForgotBox"
+            style="display: none; margin-top: 12px"
+          >
+            <p style="margin: 0 0 10px; color: #5d6d7e; font-size: 0.9em">
+              Use this if you do not know the old password. OTP will go to the
+              preset recovery email.
+            </p>
+            <div
+              style="
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                align-items: center;
+              "
+            >
+              <input
+                type="text"
+                id="changePasswordForgotOtp"
+                placeholder="Enter Recovery OTP"
+                style="flex: 1; min-width: 220px"
+              />
+              <button
+                class="btn-add"
+                type="button"
+                style="background: #2980b9"
+                onclick="sendChangePasswordForgotOtp()"
+              >
+                Send Recovery OTP
+              </button>
+              <button
+                class="btn-add"
+                type="button"
+                style="background: #8e44ad"
+                onclick="resetUserPasswordWithoutOldPassword()"
+              >
+                Reset Without Old Password
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="admin-form">
@@ -1260,6 +1345,13 @@
         }
       }
 
+      function toggleChangePasswordForgotBox() {
+        const forgotBox = document.getElementById("changePasswordForgotBox");
+        if (!forgotBox) return;
+        const isOpen = forgotBox.style.display === "block";
+        forgotBox.style.display = isOpen ? "none" : "block";
+      }
+
       function isPasswordResetEmailConfigured() {
         return (
           window.emailjs &&
@@ -1286,7 +1378,7 @@
         }
 
         if (!recipientEmail) {
-          alert("Please enter the email address where the OTP should be sent.");
+          alert("Recovery email is not configured.");
           return;
         }
 
@@ -1326,10 +1418,136 @@
             },
           );
 
-          alert(`OTP sent.`);
+          alert("OTP sent.");
         } catch (error) {
           await otpRef.remove();
           alert(error.text || error.message || "Failed to send email OTP.");
+        }
+      }
+
+      async function sendChangePasswordForgotOtp() {
+        const role = document.getElementById("resetUserRole").value;
+        const recipientEmail = getPasswordResetRecipientEmail();
+
+        if (!role) {
+          alert("Please select the user role first.");
+          return;
+        }
+
+        if (!recipientEmail) {
+          alert("Recovery email is not configured.");
+          return;
+        }
+
+        if (!isPasswordResetEmailConfigured()) {
+          alert("Email OTP service is not configured yet.");
+          return;
+        }
+
+        const otp = generatePasswordResetOtp();
+        const otpRef = database.ref(`portalData/passwordResetEmailOtp/${role}`);
+
+        try {
+          await otpRef.set({
+            otp,
+            email: recipientEmail,
+            createdAt: Date.now(),
+            expiresAt: Date.now() + PASSWORD_RESET_OTP_EXPIRY_MS,
+            used: false,
+            mode: "admin-forgot-password",
+          });
+
+          await emailjs.send(
+            PASSWORD_RESET_EMAIL_CONFIG.serviceId,
+            PASSWORD_RESET_EMAIL_CONFIG.templateId,
+            {
+              to_email: recipientEmail,
+              otp_code: otp,
+              user_role: role,
+              app_name: "RAM PRAKASH INTERIORS",
+              expires_in_minutes: "5",
+            },
+          );
+
+          alert("OTP sent.");
+        } catch (error) {
+          await otpRef.remove();
+          alert(error.text || error.message || "Failed to send email OTP.");
+        }
+      }
+
+      async function resetUserPasswordWithoutOldPassword() {
+        const role = document.getElementById("resetUserRole").value;
+        const password = document.getElementById("resetUserPassword").value;
+        const confirmPassword = document.getElementById(
+          "resetUserPasswordConfirm",
+        ).value;
+        const otp = document
+          .getElementById("changePasswordForgotOtp")
+          .value.trim();
+        const recipientEmail = getPasswordResetRecipientEmail();
+
+        if (!role || !password || !confirmPassword || !otp) {
+          alert(
+            "Please fill role, new password, confirm password, and recovery OTP.",
+          );
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          alert("New password and confirm password do not match.");
+          return;
+        }
+
+        const otpRef = database.ref(`portalData/passwordResetEmailOtp/${role}`);
+
+        try {
+          const otpSnap = await otpRef.once("value");
+          if (!otpSnap.exists()) {
+            alert("No OTP request found. Please send recovery OTP first.");
+            return;
+          }
+
+          const otpData = otpSnap.val();
+          if (otpData.used) {
+            alert("This OTP has already been used. Please request a new one.");
+            return;
+          }
+
+          if (Date.now() > otpData.expiresAt) {
+            await otpRef.remove();
+            alert("OTP expired. Please request a new recovery OTP.");
+            return;
+          }
+
+          if (
+            String(otpData.email || "").toLowerCase() !==
+            recipientEmail.toLowerCase()
+          ) {
+            alert("Recovery email does not match the configured recipient.");
+            return;
+          }
+
+          if (String(otpData.otp || "") !== otp) {
+            alert("Invalid recovery OTP.");
+            return;
+          }
+
+          USER_PROFILES[role] = password;
+          await database.ref("portalData/userProfiles").set(USER_PROFILES);
+          await otpRef.remove();
+
+          document.getElementById("resetUserRole").value = "";
+          document.getElementById("resetUserOldPassword").value = "";
+          document.getElementById("resetUserPassword").value = "";
+          document.getElementById("resetUserPasswordConfirm").value = "";
+          document.getElementById("changePasswordForgotOtp").value = "";
+          document.getElementById("changePasswordForgotBox").style.display =
+            "none";
+
+          alert("Password updated successfully.");
+        } catch (error) {
+          alert(error.message || "Password reset failed.");
         }
       }
 
@@ -1344,7 +1562,7 @@
 
         if (!role || !password || !confirmPassword || !otp || !recipientEmail) {
           alert(
-            "Please fill role, email, new password, confirm password, and email OTP.",
+            "Please fill role, new password, confirm password, and email OTP.",
           );
           return;
         }
@@ -1379,7 +1597,7 @@
             String(otpData.email || "").toLowerCase() !==
             recipientEmail.toLowerCase()
           ) {
-            alert("Enter the same email address that received the OTP.");
+            alert("Recovery email does not match the configured recipient.");
             return;
           }
 
