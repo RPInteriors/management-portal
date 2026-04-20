@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
     <style>
       /* --- STYLING --- */
@@ -834,6 +835,16 @@
               Show
             </label>
           </div>
+
+          <input type="text" id="resetUserOtp" placeholder="Enter Email OTP" />
+          <button
+            class="btn-add"
+            type="button"
+            style="background: #2980b9"
+            onclick="sendPasswordResetOtp()"
+          >
+            Send Email OTP
+          </button>
           <button class="btn-add" onclick="resetUserPassword()">
             Reset Password
           </button>
@@ -1052,6 +1063,21 @@
       // Initialize Firebase
       firebase.initializeApp(firebaseConfig);
       const database = firebase.database();
+      const PASSWORD_RESET_EMAIL_CONFIG = {
+        publicKey: "fN-Ut2qPUTYXjEkVa",
+        serviceId: "service_nfv0kdl",
+        templateId: "template_2dwz8md",
+        defaultRecipientEncoded: "bi5iLmthbmF1aml5YTk0QGdtYWlsLmNvbQ==",
+      };
+      const PASSWORD_RESET_OTP_EXPIRY_MS = 5 * 60 * 1000;
+      // EmailJS template variables: {{to_email}}, {{otp_code}}, {{user_role}},
+      // {{app_name}}, {{expires_in_minutes}}
+      if (
+        window.emailjs &&
+        !PASSWORD_RESET_EMAIL_CONFIG.publicKey.startsWith("YOUR_")
+      ) {
+        emailjs.init({ publicKey: PASSWORD_RESET_EMAIL_CONFIG.publicKey });
+      }
 
       // Global data variables (now linked to the cloud)
       let projects = [];
@@ -1224,18 +1250,50 @@
         input.type = shouldShow ? "text" : "password";
       }
 
-      function resetUserPassword() {
+      function getPasswordResetRecipientEmail() {
+        try {
+          return atob(
+            PASSWORD_RESET_EMAIL_CONFIG.defaultRecipientEncoded || "",
+          ).trim();
+        } catch (error) {
+          return "";
+        }
+      }
+
+      function isPasswordResetEmailConfigured() {
+        return (
+          window.emailjs &&
+          !PASSWORD_RESET_EMAIL_CONFIG.publicKey.startsWith("YOUR_") &&
+          !PASSWORD_RESET_EMAIL_CONFIG.serviceId.startsWith("YOUR_") &&
+          !PASSWORD_RESET_EMAIL_CONFIG.templateId.startsWith("YOUR_")
+        );
+      }
+
+      function generatePasswordResetOtp() {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+      }
+
+      async function sendPasswordResetOtp() {
         const role = document.getElementById("resetUserRole").value;
         const oldPassword = document.getElementById(
           "resetUserOldPassword",
         ).value;
-        const password = document.getElementById("resetUserPassword").value;
-        const confirmPassword = document.getElementById(
-          "resetUserPasswordConfirm",
-        ).value;
+        const recipientEmail = getPasswordResetRecipientEmail();
 
-        if (!role || !oldPassword || !password || !confirmPassword) {
-          alert("Please select a role and enter the new password twice.");
+        if (!role || !oldPassword) {
+          alert("Please select role and enter old password first.");
+          return;
+        }
+
+        if (!recipientEmail) {
+          alert("Please enter the email address where the OTP should be sent.");
+          return;
+        }
+
+        if (!isPasswordResetEmailConfigured()) {
+          alert(
+            "Please add your EmailJS Public Key, Service ID, and Template ID in code first.",
+          );
           return;
         }
 
@@ -1244,20 +1302,106 @@
           return;
         }
 
+        const otp = generatePasswordResetOtp();
+        const otpRef = database.ref(`portalData/passwordResetEmailOtp/${role}`);
+
+        try {
+          await otpRef.set({
+            otp,
+            email: recipientEmail,
+            createdAt: Date.now(),
+            expiresAt: Date.now() + PASSWORD_RESET_OTP_EXPIRY_MS,
+            used: false,
+          });
+
+          await emailjs.send(
+            PASSWORD_RESET_EMAIL_CONFIG.serviceId,
+            PASSWORD_RESET_EMAIL_CONFIG.templateId,
+            {
+              to_email: recipientEmail,
+              otp_code: otp,
+              user_role: role,
+              app_name: "RAM PRAKASH INTERIORS",
+              expires_in_minutes: "5",
+            },
+          );
+
+          alert(`OTP sent.`);
+        } catch (error) {
+          await otpRef.remove();
+          alert(error.text || error.message || "Failed to send email OTP.");
+        }
+      }
+
+      async function resetUserPassword() {
+        const role = document.getElementById("resetUserRole").value;
+        const password = document.getElementById("resetUserPassword").value;
+        const confirmPassword = document.getElementById(
+          "resetUserPasswordConfirm",
+        ).value;
+        const otp = document.getElementById("resetUserOtp").value.trim();
+        const recipientEmail = getPasswordResetRecipientEmail();
+
+        if (!role || !password || !confirmPassword || !otp || !recipientEmail) {
+          alert(
+            "Please fill role, email, new password, confirm password, and email OTP.",
+          );
+          return;
+        }
+
         if (password !== confirmPassword) {
           alert("New password and confirm password do not match.");
           return;
         }
 
-        USER_PROFILES[role] = password;
-        saveToLocalStorage();
+        const otpRef = database.ref(`portalData/passwordResetEmailOtp/${role}`);
 
-        document.getElementById("resetUserRole").value = "";
-        document.getElementById("resetUserOldPassword").value = "";
-        document.getElementById("resetUserPassword").value = "";
-        document.getElementById("resetUserPasswordConfirm").value = "";
+        try {
+          const otpSnap = await otpRef.once("value");
+          if (!otpSnap.exists()) {
+            alert("No OTP request found. Please send email OTP first.");
+            return;
+          }
 
-        alert(`${role} password updated successfully.`);
+          const otpData = otpSnap.val();
+          if (otpData.used) {
+            alert("This OTP has already been used. Please request a new one.");
+            return;
+          }
+
+          if (Date.now() > otpData.expiresAt) {
+            await otpRef.remove();
+            alert("OTP expired. Please request a new email OTP.");
+            return;
+          }
+
+          if (
+            String(otpData.email || "").toLowerCase() !==
+            recipientEmail.toLowerCase()
+          ) {
+            alert("Enter the same email address that received the OTP.");
+            return;
+          }
+
+          if (String(otpData.otp || "") !== otp) {
+            alert("Invalid email OTP.");
+            return;
+          }
+
+          USER_PROFILES[role] = password;
+          await database.ref("portalData/userProfiles").set(USER_PROFILES);
+          await otpRef.remove();
+
+          document.getElementById("resetUserRole").value = "";
+          document.getElementById("resetUserOldPassword").value = "";
+          document.getElementById("resetUserPassword").value = "";
+          document.getElementById("resetUserPasswordConfirm").value = "";
+          document.getElementById("resetUserOtp").value = "";
+
+          alert("Password updated successfully.");
+        } catch (error) {
+          alert(error.message || "Password reset failed.");
+        }
       }
 
       // --- NAVIGATION ---
