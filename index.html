@@ -869,8 +869,17 @@
 
         <div class="admin-form">
           <h3>Manual Attendance/Pocket Money Correction</h3>
-          <select id="adminManualEmp">
+          <select
+            id="adminManualEmp"
+            onchange="syncAdminManualProjectSelection()"
+          >
             <option value="">Select Employee</option>
+          </select>
+          <select
+            id="adminManualProject"
+            style="border: 1px solid #1abc9c; background: #f7fffd"
+          >
+            <option value="">Assign Project</option>
           </select>
           <input type="date" id="adminManualDate" />
           <select id="adminManualStatus">
@@ -2605,6 +2614,10 @@
           (sum, h) => sum + (h.pay || 0),
           0,
         );
+        const totalDaysWorked = filteredHistory.reduce(
+          (sum, h) => sum + (Number(h.dayCount) || 0),
+          0,
+        );
         const totalPaid = (emp.payments || [])
           .filter((p) => p.month === monthStr)
           .reduce((sum, p) => sum + p.amount, 0);
@@ -2638,22 +2651,29 @@
         doc.text(`IFSC: ${emp.ifsc || "N/A"}`, rightColX, 45);
 
         doc.setFontSize(11);
+        doc.setTextColor(44, 62, 80);
+        doc.text(
+          `Total Days Worked: ${totalDaysWorked.toFixed(2)}`,
+          rightColX,
+          52,
+        );
+        doc.setTextColor(0, 0, 0);
         doc.text(
           `Total Pocket Money Given: INR ${totalEarned.toLocaleString()}`,
           rightColX,
-          52,
+          58,
         );
         doc.setTextColor(192, 57, 43);
         doc.text(
           `Additional Payment Given: INR ${totalPaid.toLocaleString()}`,
           rightColX,
-          58,
+          64,
         );
         doc.setTextColor(39, 174, 96);
         doc.text(
           `Net Payment Made: INR ${(totalEarned + totalPaid).toLocaleString()}`,
           rightColX,
-          64,
+          70,
         );
 
         // --- Aadhar Card Section: Added significant gap here ---
@@ -2836,10 +2856,27 @@
           employees
             .map((e) => `<option value="${e.id}">${e.name}</option>`)
             .join("");
+
+        const projectDropdown = document.getElementById("adminManualProject");
+        if (projectDropdown) {
+          const runningProjects = projects.filter(
+            (project) => project.status === "running",
+          );
+          projectDropdown.innerHTML =
+            '<option value="">Assign Project</option>' +
+            runningProjects
+              .map(
+                (project) =>
+                  `<option value="${project.name}">${project.name}</option>`,
+              )
+              .join("");
+        }
       }
 
       function adminManualEntry() {
         const empId = document.getElementById("adminManualEmp").value;
+        const selectedProject =
+          document.getElementById("adminManualProject").value;
         const rawDate = document.getElementById("adminManualDate").value;
         const wage = document.getElementById("adminManualWage").value;
         const status = document.getElementById("adminManualStatus").value;
@@ -2889,9 +2926,13 @@
           entry: entry,
           exit: exit,
           pay: parseInt(wage),
-          project: emp.currentProject || "Unassigned",
+          project: selectedProject || emp.currentProject || "Unassigned",
           dayCount: dayMultiplier, // Now correctly calculates 1, 1.5, or 2
         });
+
+        if (selectedProject) {
+          emp.currentProject = selectedProject;
+        }
 
         saveToLocalStorage(); // Sync to Firebase
         alert(
@@ -2902,6 +2943,20 @@
         if (document.getElementById("page1").style.display === "block") {
           renderEmployeeList();
         }
+      }
+
+      function syncAdminManualProjectSelection() {
+        const empId = document.getElementById("adminManualEmp").value;
+        const projectDropdown = document.getElementById("adminManualProject");
+        if (!projectDropdown) return;
+
+        if (!empId) {
+          projectDropdown.value = "";
+          return;
+        }
+
+        const emp = employees.find((e) => e.id === empId);
+        projectDropdown.value = emp?.currentProject || "";
       }
 
       function editProject(name) {
@@ -3071,79 +3126,131 @@
         }
       }
 
+      function getProjectDailyEmployeeRecords(projectName) {
+        return employees
+          .flatMap((emp) =>
+            ensureArray(emp.attendanceHistory)
+              .filter(
+                (entry) =>
+                  entry.project === projectName && entry.status !== "Absent",
+              )
+              .map((entry) => ({
+                date: entry.date,
+                employeeName: emp.name,
+                status: entry.status || "Present",
+              })),
+          )
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+      }
+
+      function getProjectEmployeesForToday(projectName) {
+        const today = new Date().toDateString();
+        const todaysEmployees = employees.filter((emp) =>
+          ensureArray(emp.attendanceHistory).some(
+            (entry) => entry.date === today && entry.project === projectName,
+          ),
+        );
+
+        return todaysEmployees.length > 0
+          ? todaysEmployees
+          : employees.filter((e) => e.currentProject === projectName);
+      }
+
       function generateProjectPDF(projectName) {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF("l"); // Landscape orientation
+        const doc = new jsPDF("p");
         const p = projects.find((proj) => proj.name === projectName);
 
         if (!p) return alert("Project not found");
 
-        const left = (p.totalAmt || 0) - (p.recAmt || 0);
+        const finances = getProjectFinancials(p);
+        const currentWorkers = getProjectEmployeesForToday(p.name);
+        const dailyRecords = getProjectDailyEmployeeRecords(p.name);
+        const employeeGroups = dailyRecords.reduce((acc, item) => {
+          const key = item.date || "N/A";
+          if (!acc[key]) acc[key] = [];
+          if (!acc[key].includes(item.employeeName))
+            acc[key].push(item.employeeName);
+          return acc;
+        }, {});
 
-        // --- Header ---
-        doc.setFontSize(22);
+        doc.setFontSize(20);
         doc.setTextColor(44, 62, 80);
-        // Updated line: Dynamically uses the company name in the main heading
-        doc.text(`RAM PRAKASH INTERIORS - ${p.company || "N/A"}`, 145, 15, {
-          align: "center",
-        });
+        doc.text("Project Summary Report", 105, 16, { align: "center" });
 
-        // --- Project Info ---
         doc.setFontSize(11);
         doc.setTextColor(0);
-        doc.text(`Project: ${p.name}`, 20, 30);
-        doc.text(`Company: ${p.company || "N/A"}`, 20, 37);
-        doc.text(`System Proj No: ${p.invoice || "N/A"}`, 20, 44);
-
-        // --- Data Table ---
-        const tableData = [
-          [
-            p.invoice || "N/A",
-            p.name,
-            `Rs. ${p.totalAmt.toLocaleString()}`,
-            `Rs. ${p.recAmt.toLocaleString()}`,
-            p.payDate || "N/A",
-            p.payMode || "N/A",
-            `Rs. ${left.toLocaleString()}`,
-            "", // Blank column for manual pen entry
-          ],
+        const currentNames =
+          currentWorkers.map((worker) => worker.name).join(", ") || "None";
+        const infoLines = [
+          `Project: ${p.name || "N/A"}`,
+          `Company: ${p.company || "N/A"}`,
+          `System Proj No: ${p.invoice || "N/A"}`,
+          `Status: ${p.status || "N/A"}`,
+          `No. of Employees: ${currentWorkers.length}`,
+          `Employees Name: ${currentNames}`,
         ];
+        infoLines.forEach((line, idx) => doc.text(line, 14, 28 + idx * 7));
 
         doc.autoTable({
-          startY: 55,
+          startY: 75,
           head: [
             [
-              "Proj No",
-              "Project Name",
-              "Total Amt",
-              "Received",
-              "Pay Date",
-              "Pay Mode",
-              "Balance",
-              "Invoice No. (Manual)",
+              "Total Payment Generated",
+              "Total Payment Received",
+              "Payment Due to Receive",
             ],
           ],
-          body: tableData,
+          body: [
+            [
+              formatCurrency(finances.totalGenerated),
+              formatCurrency(finances.totalReceived),
+              formatCurrency(finances.settlement),
+            ],
+          ],
           theme: "grid",
           headStyles: { fillColor: [44, 62, 80] },
+        });
+
+        const employeeTableBody =
+          Object.keys(employeeGroups).length > 0
+            ? Object.entries(employeeGroups).map(([date, names]) => [
+                formatDateDisplay(date),
+                names.length,
+                names.join(", "),
+              ])
+            : currentWorkers.length > 0
+              ? [
+                  [
+                    formatDateDisplay(new Date().toDateString()),
+                    currentWorkers.length,
+                    currentWorkers.map((worker) => worker.name).join(", "),
+                  ],
+                ]
+              : [["N/A", "0", "No employees recorded"]];
+
+        doc.autoTable({
+          startY: doc.lastAutoTable.finalY + 12,
+          head: [["Date", "No. of Employees", "Employees Worked on It"]],
+          body: employeeTableBody,
+          theme: "grid",
+          headStyles: { fillColor: [26, 188, 156] },
+          styles: { overflow: "linebreak", cellPadding: 3 },
           columnStyles: {
-            7: { cellWidth: 50 }, // Extra wide for handwriting
+            0: { cellWidth: 35 },
+            1: { cellWidth: 35, halign: "center" },
+            2: { cellWidth: 110 },
           },
         });
 
         doc.setFontSize(10);
         doc.text(
-          "Generated on: " + new Date().toLocaleDateString(),
-          20,
-          doc.lastAutoTable.finalY + 15,
-        );
-        doc.text(
-          "Receiver Signature: __________________",
-          220,
-          doc.lastAutoTable.finalY + 15,
+          "Generated on: " + new Date().toLocaleDateString("en-IN"),
+          14,
+          doc.lastAutoTable.finalY + 12,
         );
 
-        doc.save(`Project_${p.name}_Finance.pdf`);
+        doc.save(`Project_${p.name}_Summary.pdf`);
       }
 
       function deleteProject(name) {
@@ -3163,16 +3270,23 @@
           if (filtered.length === 0) return `<p class="empty-state">None</p>`;
           return filtered
             .map((p) => {
-              const workers = employees.filter(
-                (e) => e.currentProject === p.name,
-              );
-              const finances = getProjectFinancials(p);
-              const showMoney = currentUserRole !== "Supervisor";
+              const workers = getProjectEmployeesForToday(p.name);
+              const workerNames =
+                workers.map((w) => w.name).join(", ") || "None";
+              const canDownloadPdf = currentUserRole === "Administrator";
 
-              return `<div style="margin-bottom:15px; padding:8px; border-bottom:1px solid #eee;">
-                                        <strong>${p.name}</strong> <small>(${p.company || "No Company"})</small>
-                                        ${showMoney ? `<div class="money-tag">Proj No: ${p.invoice || "N/A"} | Total: ${formatCurrency(finances.totalGenerated)} | Rec: ${formatCurrency(finances.totalReceived)} | <span class="money-left">Left: ${formatCurrency(finances.settlement)}</span></div>` : ""}
-                                        ${status === "running" ? `<small>${workers.length}/10 Workers: ${workers.map((w) => w.name).join(", ")}</small>` : ""}
+              return `<div style="margin-bottom:15px; padding:12px; border-bottom:1px solid #eee;">
+                                        <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                                          <div style="flex:1;">
+                                            <div><strong>Project:</strong> ${p.name || "N/A"}</div>
+                                            <div><strong>Company:</strong> ${p.company || "N/A"}</div>
+                                            <div><strong>System Proj No:</strong> ${p.invoice || "N/A"}</div>
+                                            <div><strong>Status:</strong> ${p.status || "N/A"}</div>
+                                            <div><strong>No. of Employees:</strong> ${workers.length}</div>
+                                            <div><strong>Employees Name:</strong> ${workerNames}</div>
+                                          </div>
+                                          ${canDownloadPdf ? `<button class="btn-pdf" style="background:#3498db; color:white; padding:6px 12px; border:none; border-radius:4px; cursor:pointer;" onclick="generateProjectPDF('${p.name}')">Download PDF</button>` : ""}
+                                        </div>
                                     </div>`;
             })
             .join("");
@@ -3247,7 +3361,7 @@
                                         <button class="btn-status" onclick="changeStatus('${p.name}', 'upcoming')">U</button>
                                         <button class="btn-status" onclick="changeStatus('${p.name}', 'completed')">C</button>
                                         <button class="btn-edit" onclick="editProject('${p.name}')">✏️</button>
-                                        <button class="btn-print" onclick="generateProjectPDF('${p.name}', true)">Print</button>
+                                        <button class="btn-print" onclick="generateProjectPDF('${p.name}', true, false)">Print</button>
                                         <button class="btn-del" onclick="deleteProject('${p.name}')">×</button>
                                     </td>
                                 </tr>
@@ -3294,6 +3408,23 @@
           employees
             .map((e) => `<option value="${e.id}">${e.name}</option>`)
             .join("");
+
+        const projectDropdown = document.getElementById("adminManualProject");
+        if (projectDropdown) {
+          const runningProjects = projects.filter(
+            (project) => project.status === "running",
+          );
+          projectDropdown.innerHTML =
+            '<option value="">Assign Project</option>' +
+            runningProjects
+              .map(
+                (project) =>
+                  `<option value="${project.name}">${project.name}</option>`,
+              )
+              .join("");
+        }
+
+        syncAdminManualProjectSelection();
       }
 
       function editProject(name) {
@@ -3492,7 +3623,11 @@
         renderProjectDashboard();
       }
 
-      function generateProjectPDF(projectName, shouldPrint = false) {
+      function generateProjectPDF(
+        projectName,
+        shouldPrint = false,
+        includeEmployees = true,
+      ) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF("l");
         const p = projects.find((proj) => proj.name === projectName);
@@ -3501,6 +3636,15 @@
 
         const finances = getProjectFinancials(p);
         const ledger = getProjectLedger(p);
+        const dailyRecords = getProjectDailyEmployeeRecords(p.name);
+        const employeeGroups = dailyRecords.reduce((acc, item) => {
+          const key = item.date || "N/A";
+          if (!acc[key]) acc[key] = [];
+          if (!acc[key].includes(item.employeeName)) {
+            acc[key].push(item.employeeName);
+          }
+          return acc;
+        }, {});
         const settlementLabel =
           finances.settlement > 0
             ? "Amount to be received from client"
@@ -3572,6 +3716,31 @@
           theme: "grid",
           headStyles: { fillColor: [26, 188, 156] },
         });
+
+        if (includeEmployees) {
+          const employeeTableBody =
+            Object.keys(employeeGroups).length > 0
+              ? Object.entries(employeeGroups).map(([date, names]) => [
+                  formatDateDisplay(date),
+                  names.length,
+                  names.slice(0, 10).join(", "),
+                ])
+              : [["N/A", "0", "No employee work records found"]];
+
+          doc.autoTable({
+            startY: doc.lastAutoTable.finalY + 10,
+            head: [["Work Date", "No. of Employees", "Employees Worked on It"]],
+            body: employeeTableBody,
+            theme: "grid",
+            headStyles: { fillColor: [52, 152, 219] },
+            styles: { overflow: "linebreak", cellPadding: 3 },
+            columnStyles: {
+              0: { cellWidth: 35 },
+              1: { cellWidth: 35, halign: "center" },
+              2: { cellWidth: 120 },
+            },
+          });
+        }
 
         doc.autoTable({
           startY: doc.lastAutoTable.finalY + 10,
