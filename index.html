@@ -3720,6 +3720,12 @@
         });
 
         if (includeEmployees) {
+          const totalDaysWorked =
+            Object.keys(employeeGroups).length > 0
+              ? Object.keys(employeeGroups).length
+              : currentWorkers.length > 0
+                ? 1
+                : 0;
           const employeeTableBody =
             Object.keys(employeeGroups).length > 0
               ? Object.entries(employeeGroups).map(([date, names]) => [
@@ -3736,6 +3742,26 @@
                     ],
                   ]
                 : [["N/A", "0", "No employee work records found"]];
+
+          employeeTableBody.push([
+            {
+              content: "TOTAL DAYS WORKED",
+              colSpan: 2,
+              styles: {
+                halign: "right",
+                fontStyle: "bold",
+                fillColor: [230, 230, 230],
+              },
+            },
+            {
+              content: String(totalDaysWorked),
+              styles: {
+                halign: "center",
+                fontStyle: "bold",
+                fillColor: [230, 230, 230],
+              },
+            },
+          ]);
 
           doc.autoTable({
             startY: doc.lastAutoTable.finalY + 10,
