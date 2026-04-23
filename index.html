@@ -1332,10 +1332,11 @@
       // --- STORAGE LOGIC ---
       // Redefining the function name used 21 times to now sync with the Cloud
       function saveToLocalStorage() {
-        // Use the Firebase 'database' instance to push data to the cloud
+        // Update only the known collections so sibling nodes such as
+        // password-reset OTP records are not removed by a full overwrite.
         database
           .ref("portalData")
-          .set({
+          .update({
             projects: projects,
             employees: employees,
             expenseRecords: expenseRecords,
@@ -3637,6 +3638,7 @@
         const finances = getProjectFinancials(p);
         const ledger = getProjectLedger(p);
         const dailyRecords = getProjectDailyEmployeeRecords(p.name);
+        const currentWorkers = getProjectEmployeesForToday(p.name);
         const employeeGroups = dailyRecords.reduce((acc, item) => {
           const key = item.date || "N/A";
           if (!acc[key]) acc[key] = [];
@@ -3725,7 +3727,15 @@
                   names.length,
                   names.slice(0, 10).join(", "),
                 ])
-              : [["N/A", "0", "No employee work records found"]];
+              : currentWorkers.length > 0
+                ? [
+                    [
+                      formatDateDisplay(new Date().toDateString()),
+                      currentWorkers.length,
+                      currentWorkers.map((worker) => worker.name).join(", "),
+                    ],
+                  ]
+                : [["N/A", "0", "No employee work records found"]];
 
           doc.autoTable({
             startY: doc.lastAutoTable.finalY + 10,
