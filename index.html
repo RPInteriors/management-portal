@@ -1379,7 +1379,7 @@
           if (data) {
             // Sync global variables with cloud data
             projects = data.projects || [];
-            employees = data.employees || [];
+            employees = sortEmployeesById(data.employees || []);
             expenseRecords = data.expenseRecords || [];
             materialRecords = data.materialRecords || [];
             USER_PROFILES = {
@@ -1885,6 +1885,22 @@
         return `₹${Number(value || 0).toLocaleString("en-IN")}`;
       }
 
+      function sortEmployeesById(list = employees) {
+        return [...list].sort((a, b) => {
+          const aId = String(a?.id || "");
+          const bId = String(b?.id || "");
+          const aNum = Number(aId);
+          const bNum = Number(bId);
+          const bothNumeric = !Number.isNaN(aNum) && !Number.isNaN(bNum);
+
+          if (bothNumeric) return aNum - bNum;
+          return aId.localeCompare(bId, undefined, {
+            numeric: true,
+            sensitivity: "base",
+          });
+        });
+      }
+
       function ensureArray(value) {
         return Array.isArray(value) ? value : [];
       }
@@ -2233,6 +2249,7 @@
         if (dateElement) dateElement.innerText = today;
 
         const tbody = document.getElementById("employeeListBody");
+        employees = sortEmployeesById(employees);
 
         if (employees.length === 0) {
           tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No employees found.</td></tr>`;
@@ -2784,6 +2801,7 @@
 
       // --- ADMIN ACTIONS ---
       function renderAdminPanel() {
+        employees = sortEmployeesById(employees);
         const pList = document.getElementById("adminProjectListBody");
         pList.innerHTML =
           projects.length === 0
@@ -3881,6 +3899,7 @@
             attendanceHistory: [],
             payments: [],
           });
+          employees = sortEmployeesById(employees);
 
           document.getElementById("newEmpId").value = "";
           document.getElementById("newEmpName").value = "";
