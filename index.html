@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
     <style>
@@ -1254,6 +1255,7 @@
       // Initialize Firebase
       firebase.initializeApp(firebaseConfig);
       const database = firebase.database();
+      const auth = firebase.auth();
       const PASSWORD_RESET_EMAIL_CONFIG = {
         publicKey: "fN-Ut2qPUTYXjEkVa",
         serviceId: "service_nfv0kdl",
@@ -1281,6 +1283,11 @@
         Administrator: "im_the_admin+85",
         Supervisor: "wise_supervisor%94",
       };
+      const ROLE_EMAIL_MAP = {
+        CEO: "ceo@rpinteriors.local",
+        Administrator: "admin@rpinteriors.local",
+        Supervisor: "supervisor@rpinteriors.local",
+      };
       // Emergency recovery switch:
       // Set this to true in code, reload once, and the hardcoded passwords above
       // will overwrite the cloud passwords so you can regain access.
@@ -1289,17 +1296,61 @@
 
       let currentUserRole = null;
 
-      function handleGlobalLogin() {
+      function getRoleEmail(role) {
+        return ROLE_EMAIL_MAP[role] || "";
+      }
+
+      function getCurrentSignedInRole() {
+        const currentEmail = String(auth.currentUser?.email || "").toLowerCase();
+        return (
+          Object.keys(ROLE_EMAIL_MAP).find(
+            (role) => getRoleEmail(role).toLowerCase() === currentEmail,
+          ) || null
+        );
+      }
+
+      async function syncRolePasswordToFirebaseAuth(role, currentPassword, nextPassword) {
+        const email = getRoleEmail(role);
+        if (!email) {
+          throw new Error("No Firebase Authentication email is mapped to this role.");
+        }
+
+        const secondaryAppName = `rp-auth-reset-${Date.now()}`;
+        const secondaryApp = firebase.initializeApp(firebaseConfig, secondaryAppName);
+
+        try {
+          const secondaryAuth = secondaryApp.auth();
+          await secondaryAuth.signInWithEmailAndPassword(email, currentPassword);
+
+          if (!secondaryAuth.currentUser) {
+            throw new Error("Could not access the selected Firebase user.");
+          }
+
+          await secondaryAuth.currentUser.updatePassword(nextPassword);
+          await secondaryAuth.signOut();
+        } finally {
+          await secondaryApp.delete().catch(() => {});
+        }
+      }
+
+      async function handleGlobalLogin() {
         const role = document.getElementById("userRole").value;
         const pass = document.getElementById("globalPassword").value;
         const errorMsg = document.getElementById("loginError");
+        const email = getRoleEmail(role);
 
-        if (USER_PROFILES[role] === pass) {
+        if (!role || !pass || !email) {
+          errorMsg.style.display = "block";
+          return;
+        }
+
+        try {
+          await auth.signInWithEmailAndPassword(email, pass);
           currentUserRole = role;
           sessionStorage.setItem("rp_auth_role", role);
           errorMsg.style.display = "none";
           initApplication();
-        } else {
+        } catch (error) {
           errorMsg.style.display = "block";
         }
       }
@@ -1324,7 +1375,10 @@
 
       function logout() {
         sessionStorage.clear();
-        window.location.reload();
+        auth
+          .signOut()
+          .catch(() => {})
+          .finally(() => window.location.reload());
       }
 
       const defaultDailyRate = 1500;
@@ -1417,17 +1471,21 @@
         document.getElementById("loginOverlay").style.display = "flex";
       }
 
-      function login() {
+      async function login() {
         const pass = document.getElementById("adminPassword").value;
+        const adminEmail = getRoleEmail("Administrator");
         // Admin Panel strictly requires Administrator credentials
-        if (
-          currentUserRole === "Administrator" &&
-          pass === USER_PROFILES["Administrator"]
-        ) {
+        if (currentUserRole !== "Administrator") {
+          alert("Access Denied: Administrator profile required!");
+          return;
+        }
+
+        try {
+          await auth.signInWithEmailAndPassword(adminEmail, pass);
           document.getElementById("loginOverlay").style.display = "none";
           document.getElementById("adminPassword").value = "";
           showPage("page4");
-        } else {
+        } catch (error) {
           alert("Access Denied: Administrator profile required!");
         }
       }
@@ -1694,6 +1752,11 @@
             return;
           }
 
+          await syncRolePasswordToFirebaseAuth(
+            role,
+            USER_PROFILES[role],
+            password,
+          );
           USER_PROFILES[role] = password;
           await database.ref("portalData/userProfiles").set(USER_PROFILES);
           await otpRef.remove();
@@ -1767,6 +1830,11 @@
             return;
           }
 
+          await syncRolePasswordToFirebaseAuth(
+            role,
+            USER_PROFILES[role],
+            password,
+          );
           USER_PROFILES[role] = password;
           await database.ref("portalData/userProfiles").set(USER_PROFILES);
           await otpRef.remove();
@@ -1840,6 +1908,11 @@
             return;
           }
 
+          await syncRolePasswordToFirebaseAuth(
+            role,
+            USER_PROFILES[role],
+            password,
+          );
           USER_PROFILES[role] = password;
           await database.ref("portalData/userProfiles").set(USER_PROFILES);
           await otpRef.remove();
@@ -4519,10 +4592,17 @@
           applyForcedCodePasswords();
         }
         const savedRole = sessionStorage.getItem("rp_auth_role");
-        if (savedRole) {
-          currentUserRole = savedRole;
-          initApplication();
-        }
+        auth.onAuthStateChanged((user) => {
+          if (savedRole && user) {
+            currentUserRole = getCurrentSignedInRole() || savedRole;
+            initApplication();
+            return;
+          }
+
+          if (!user) {
+            sessionStorage.removeItem("rp_auth_role");
+          }
+        });
       };
     </script>
   </body>
