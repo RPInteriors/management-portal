@@ -1339,18 +1339,30 @@
         const errorMsg = document.getElementById("loginError");
         const email = getRoleEmail(role);
 
-        if (!role || !pass || !email) {
+        if (!role || !pass) {
           errorMsg.style.display = "block";
           return;
         }
 
         try {
+          if (!email) {
+            throw new Error("No mapped auth email for this role.");
+          }
+
           await auth.signInWithEmailAndPassword(email, pass);
           currentUserRole = role;
           sessionStorage.setItem("rp_auth_role", role);
           errorMsg.style.display = "none";
           initApplication();
         } catch (error) {
+          if (USER_PROFILES[role] === pass) {
+            currentUserRole = role;
+            sessionStorage.setItem("rp_auth_role", role);
+            errorMsg.style.display = "none";
+            initApplication();
+            return;
+          }
+
           errorMsg.style.display = "block";
         }
       }
@@ -1481,11 +1493,22 @@
         }
 
         try {
+          if (!adminEmail) {
+            throw new Error("No mapped auth email for Administrator.");
+          }
+
           await auth.signInWithEmailAndPassword(adminEmail, pass);
           document.getElementById("loginOverlay").style.display = "none";
           document.getElementById("adminPassword").value = "";
           showPage("page4");
         } catch (error) {
+          if (pass === USER_PROFILES["Administrator"]) {
+            document.getElementById("loginOverlay").style.display = "none";
+            document.getElementById("adminPassword").value = "";
+            showPage("page4");
+            return;
+          }
+
           alert("Access Denied: Administrator profile required!");
         }
       }
@@ -4595,6 +4618,12 @@
         auth.onAuthStateChanged((user) => {
           if (savedRole && user) {
             currentUserRole = getCurrentSignedInRole() || savedRole;
+            initApplication();
+            return;
+          }
+
+          if (savedRole && FORCE_CODE_PASSWORDS) {
+            currentUserRole = savedRole;
             initApplication();
             return;
           }
