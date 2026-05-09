@@ -1242,14 +1242,14 @@
     <script>
       // Firebase configuration using your specific credentials
       const firebaseConfig = {
-        apiKey: "AIzaSyDa1felTxMnnv9N-_boLXa_MUvsHXE0ef4",
-        authDomain: "rp-interiors.firebaseapp.com",
-        projectId: "rp-interiors",
-        storageBucket: "rp-interiors.firebasestorage.app",
-        messagingSenderId: "562728158515",
-        appId: "1:562728158515:web:a4ae20094fc01797d4ea46",
-        measurementId: "G-JD2WFJEYWB",
-        databaseURL: "https://rp-interiors-5cee8-default-rtdb.firebaseio.com/", // Ensure this matches your console URL
+        apiKey: "AIzaSyAVDIuYx2KWbZiuh9nWmgy4cyOg45p_rPA",
+        authDomain: "rp-interiors-5cee8.firebaseapp.com",
+        projectId: "rp-interiors-5cee8",
+        storageBucket: "rp-interiors-5cee8.firebasestorage.app",
+        messagingSenderId: "91769955879",
+        appId: "1:91769955879:web:b9f770e0bf35e52a839002",
+        measurementId: "G-GGPY5ZX4RD",
+        databaseURL: "https://rp-interiors-5cee8-default-rtdb.firebaseio.com",
       };
 
       // Initialize Firebase
@@ -1257,7 +1257,7 @@
       const database = firebase.database();
       const auth = firebase.auth();
       const PASSWORD_RESET_EMAIL_CONFIG = {
-        publicKey: "fN-Ut2qPUTYXjEkVa",
+        publicKey: "fN-Ut2qPUTYXiEkVa",
         serviceId: "service_nfv0kdl",
         templateId: "template_2dwz8md",
         defaultRecipientEncoded: "bi5iLmthbmF1aml5YTk0QGdtYWlsLmNvbQ==",
@@ -1295,13 +1295,16 @@
       let USER_PROFILES = { ...DEFAULT_USER_PROFILES };
 
       let currentUserRole = null;
+      let hasInitializedApp = false;
 
       function getRoleEmail(role) {
         return ROLE_EMAIL_MAP[role] || "";
       }
 
       function getCurrentSignedInRole() {
-        const currentEmail = String(auth.currentUser?.email || "").toLowerCase();
+        const currentEmail = String(
+          auth.currentUser?.email || "",
+        ).toLowerCase();
         return (
           Object.keys(ROLE_EMAIL_MAP).find(
             (role) => getRoleEmail(role).toLowerCase() === currentEmail,
@@ -1309,18 +1312,30 @@
         );
       }
 
-      async function syncRolePasswordToFirebaseAuth(role, currentPassword, nextPassword) {
+      async function syncRolePasswordToFirebaseAuth(
+        role,
+        currentPassword,
+        nextPassword,
+      ) {
         const email = getRoleEmail(role);
         if (!email) {
-          throw new Error("No Firebase Authentication email is mapped to this role.");
+          throw new Error(
+            "No Firebase Authentication email is mapped to this role.",
+          );
         }
 
         const secondaryAppName = `rp-auth-reset-${Date.now()}`;
-        const secondaryApp = firebase.initializeApp(firebaseConfig, secondaryAppName);
+        const secondaryApp = firebase.initializeApp(
+          firebaseConfig,
+          secondaryAppName,
+        );
 
         try {
           const secondaryAuth = secondaryApp.auth();
-          await secondaryAuth.signInWithEmailAndPassword(email, currentPassword);
+          await secondaryAuth.signInWithEmailAndPassword(
+            email,
+            currentPassword,
+          );
 
           if (!secondaryAuth.currentUser) {
             throw new Error("Could not access the selected Firebase user.");
@@ -1335,39 +1350,60 @@
 
       async function handleGlobalLogin() {
         const role = document.getElementById("userRole").value;
-        const pass = document.getElementById("globalPassword").value;
+        const pass = document.getElementById("globalPassword").value.trim();
         const errorMsg = document.getElementById("loginError");
         const email = getRoleEmail(role);
 
-        if (!role || !pass) {
+        if (!role || !pass || !email) {
+          errorMsg.textContent = "Please choose a role and enter password.";
           errorMsg.style.display = "block";
           return;
         }
 
         try {
-          if (!email) {
-            throw new Error("No mapped auth email for this role.");
+          if (
+            auth.currentUser &&
+            String(auth.currentUser.email || "").toLowerCase() !==
+              email.toLowerCase()
+          ) {
+            await auth.signOut();
           }
 
           await auth.signInWithEmailAndPassword(email, pass);
           currentUserRole = role;
           sessionStorage.setItem("rp_auth_role", role);
+          document.getElementById("globalPassword").value = "";
+          errorMsg.textContent = "Invalid credentials!";
           errorMsg.style.display = "none";
           initApplication();
         } catch (error) {
-          if (USER_PROFILES[role] === pass) {
-            currentUserRole = role;
-            sessionStorage.setItem("rp_auth_role", role);
-            errorMsg.style.display = "none";
-            initApplication();
-            return;
-          }
-
+          console.error("Login failed:", error);
+          const authMessageMap = {
+            "auth/invalid-credential":
+              "Login failed. Check the Firebase Auth email/password for this role.",
+            "auth/wrong-password": "Wrong password for this role.",
+            "auth/user-not-found":
+              "This role is missing in Firebase Authentication.",
+            "auth/invalid-email":
+              "The Firebase email mapped to this role is invalid.",
+            "auth/network-request-failed":
+              "Network error while contacting Firebase. Check internet and try again.",
+            "auth/too-many-requests":
+              "Too many failed login attempts. Wait a bit and try again.",
+            "auth/operation-not-allowed":
+              "Email/Password sign-in is not enabled in Firebase Authentication.",
+          };
+          errorMsg.textContent =
+            authMessageMap[error.code] ||
+            error.message ||
+            "Invalid credentials!";
           errorMsg.style.display = "block";
         }
       }
 
       function initApplication() {
+        if (hasInitializedApp) return;
+        hasInitializedApp = true;
         document.getElementById("globalAuthOverlay").style.display = "none";
         document.getElementById("mainAppContent").style.display = "block";
 
@@ -1387,6 +1423,7 @@
 
       function logout() {
         sessionStorage.clear();
+        hasInitializedApp = false;
         auth
           .signOut()
           .catch(() => {})
@@ -1398,9 +1435,18 @@
       // --- STORAGE LOGIC ---
       // Redefining the function name used 21 times to now sync with the Cloud
       function saveToLocalStorage() {
+        if (!auth.currentUser) {
+          const error = new Error("Firebase Auth session missing.");
+          console.error("Cloud Sync Error: ", error);
+          alert(
+            "Save failed: you are not signed in to Firebase. Please log in again and retry.",
+          );
+          return Promise.reject(error);
+        }
+
         // Update only the known collections so sibling nodes such as
         // password-reset OTP records are not removed by a full overwrite.
-        database
+        return database
           .ref("portalData")
           .update({
             projects: projects,
@@ -1416,6 +1462,10 @@
           })
           .catch((error) => {
             console.error("Cloud Sync Error: ", error);
+            alert(
+              `Save failed in Firebase: ${error.message || "unknown error"}. Your latest changes were not saved to cloud.`,
+            );
+            throw error;
           });
       }
 
@@ -1493,22 +1543,12 @@
         }
 
         try {
-          if (!adminEmail) {
-            throw new Error("No mapped auth email for Administrator.");
-          }
-
           await auth.signInWithEmailAndPassword(adminEmail, pass);
           document.getElementById("loginOverlay").style.display = "none";
           document.getElementById("adminPassword").value = "";
           showPage("page4");
         } catch (error) {
-          if (pass === USER_PROFILES["Administrator"]) {
-            document.getElementById("loginOverlay").style.display = "none";
-            document.getElementById("adminPassword").value = "";
-            showPage("page4");
-            return;
-          }
-
+          console.error("Admin verification failed:", error);
           alert("Access Denied: Administrator profile required!");
         }
       }
@@ -4614,22 +4654,22 @@
         if (FORCE_CODE_PASSWORDS) {
           applyForcedCodePasswords();
         }
-        const savedRole = sessionStorage.getItem("rp_auth_role");
         auth.onAuthStateChanged((user) => {
-          if (savedRole && user) {
-            currentUserRole = getCurrentSignedInRole() || savedRole;
-            initApplication();
-            return;
-          }
-
-          if (savedRole && FORCE_CODE_PASSWORDS) {
-            currentUserRole = savedRole;
+          if (user) {
+            currentUserRole =
+              getCurrentSignedInRole() ||
+              sessionStorage.getItem("rp_auth_role");
+            if (currentUserRole) {
+              sessionStorage.setItem("rp_auth_role", currentUserRole);
+            }
             initApplication();
             return;
           }
 
           if (!user) {
             sessionStorage.removeItem("rp_auth_role");
+            hasInitializedApp = false;
+            currentUserRole = null;
           }
         });
       };
