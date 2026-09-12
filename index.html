@@ -4370,14 +4370,51 @@ function saveToLocalStorage() {
         renderAdminPanel();
         alert("Employee updated successfully!");
       }
+function deleteEmployee(id) {
+  if (!confirm("Remove this employee?")) return;
 
-      function deleteEmployee(id) {
-        if (confirm("Remove this employee?")) {
-          employees = employees.filter((e) => e.id !== id);
-          saveToLocalStorage();
-          renderAdminPanel();
-        }
+  const employeeRef = database.ref("portalData/employees");
+
+  employeeRef
+    .transaction((currentEmployees) => {
+      if (!Array.isArray(currentEmployees)) return currentEmployees;
+
+      return currentEmployees.filter((e) => e && e.id !== id);
+    })
+    .then((result) => {
+      if (!result.committed) {
+        alert("Employee was not deleted. Please try again.");
+        return;
       }
+
+      employees = Array.isArray(result.snapshot.val())
+        ? sortEmployeesById(result.snapshot.val())
+        : [];
+
+      try {
+        localStorage.setItem(
+          "RPI_employee_backup",
+          JSON.stringify(employees)
+        );
+        localStorage.setItem(
+          "RPI_employee_backup_time",
+          new Date().toISOString()
+        );
+      } catch (backupError) {
+        console.warn("RPI local backup failed:", backupError);
+      }
+
+      renderAdminPanel();
+    })
+    .catch((error) => {
+      console.error("Employee delete error:", error);
+      alert(
+        `Employee deletion failed: ${
+          error.message || "unknown error"
+        }`
+      );
+    });
+}
 
       function updateProject(empId, newProj) {
         const emp = employees.find((e) => e.id === empId);
