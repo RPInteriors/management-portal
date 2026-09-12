@@ -1686,7 +1686,7 @@ function saveToLocalStorage() {
         console.log(
           "Emergency password reset applied from code. Set FORCE_CODE_PASSWORDS back to false after access is restored.",
         );
-      }
+                                        }
 
       // This function replaces loadFromLocalStorage to enable real-time cloud sync
       function initCloudSync() {
@@ -1696,7 +1696,9 @@ function saveToLocalStorage() {
           if (data) {
             // Sync global variables with cloud data
             projects = data.projects || [];
-            employees = sortEmployeesById(data.employees || []);
+            if (Array.isArray(data.employees) && data.employees.length > 0) {
+  employees = sortEmployeesById(data.employees);
+}
             expenseRecords = data.expenseRecords || [];
             materialRecords = data.materialRecords || [];
             USER_PROFILES = {
