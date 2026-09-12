@@ -1626,6 +1626,22 @@
       // --- STORAGE LOGIC ---
       // Redefining the function name used 21 times to now sync with the Cloud
       function saveToLocalStorage() {
+function saveToLocalStorage() {
+  // RPI SAFETY BACKUP — keep the latest employee data locally
+  try {
+    localStorage.setItem(
+      "RPI_employee_backup",
+      JSON.stringify(employees || [])
+    );
+    localStorage.setItem(
+      "RPI_employee_backup_time",
+      new Date().toISOString()
+    );
+  } catch (backupError) {
+    console.warn("RPI local backup failed:", backupError);
+  }
+
+  // Update only the known collections...        
         // Update only the known collections so sibling nodes such as
         // password-reset OTP records are not removed by a full overwrite.
         return database
