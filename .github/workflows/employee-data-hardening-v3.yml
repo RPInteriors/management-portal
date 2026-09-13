@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Apply production security hardening
-        run: python3 scripts/harden_production.py
+        run: python3 scripts/harden_production_v2.py
       - name: Verify production hardening
         run: |
           grep -q 'function readEmployeeLocalBackup()' index.html
