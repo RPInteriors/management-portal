@@ -1,0 +1,244 @@
+name: Employee Data Hardening
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/employee-data-hardening.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Harden employee storage
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          import shutil
+          import subprocess
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          save_start = text.find('      function saveToLocalStorage() {')
+          save_end = text.find('      function initUserProfilesSync() {', save_start)
+          if save_start < 0 or save_end < 0:
+              raise SystemExit('Could not locate employee save function; refusing to modify the app.')
+
+          sync_start = text.find('      function initCloudSync() {')
+          sync_end = text.find('      // --- AUTH LOGIC ---', sync_start)
+          if sync_start < 0 or sync_end < 0:
+              raise SystemExit('Could not locate cloud sync function; refusing to modify the app.')
+
+          backup_dir = Path('backups')
+          backup_dir.mkdir(parents=True, exist_ok=True)
+          backup_name = backup_dir / f"index-before-employee-hardening-{subprocess.check_output(['git','rev-parse','--short','HEAD'], text=True).strip()}.html"
+          shutil.copy2(path, backup_name)
+
+          new_save = r'''      // --- STORAGE LOGIC ---
+      // Employee records are protected from accidental empty-cloud overwrites.
+      function readEmployeeLocalBackup() {
+        try {
+          const raw = localStorage.getItem("RPI_employee_backup");
+          const parsed = raw ? JSON.parse(raw) : [];
+          return Array.isArray(parsed) && parsed.length > 0
+            ? sortEmployeesById(parsed)
+            : [];
+        } catch (error) {
+          console.warn("RPI employee backup read failed:", error);
+          return [];
+        }
+      }
+
+      function writeEmployeeLocalBackup(employeeList) {
+        if (!Array.isArray(employeeList) || employeeList.length === 0) return;
+        try {
+          localStorage.setItem(
+            "RPI_employee_backup",
+            JSON.stringify(sortEmployeesById(employeeList)),
+          );
+          localStorage.setItem(
+            "RPI_employee_backup_time",
+            new Date().toISOString(),
+          );
+        } catch (backupError) {
+          console.warn("RPI local employee backup failed:", backupError);
+        }
+      }
+
+      function saveToLocalStorage() {
+        let safeEmployees = Array.isArray(employees)
+          ? sortEmployeesById(employees)
+          : [];
+        const localBackup = readEmployeeLocalBackup();
+
+        // NEVER replace a known employee list with an empty list by accident.
+        // An empty employee array is treated as a failed/partial load, not valid data.
+        if (safeEmployees.length === 0 && localBackup.length > 0) {
+          safeEmployees = localBackup;
+          employees = safeEmployees;
+          console.warn(
+            "RPI protection: restored employee list from local safety backup instead of saving an empty list.",
+          );
+        }
+
+        const updates = {
+          projects: projects,
+          expenseRecords: expenseRecords,
+          materialRecords: materialRecords,
+          userProfiles: USER_PROFILES,
+        };
+
+        if (safeEmployees.length > 0) {
+          employees = safeEmployees;
+          updates.employees = safeEmployees;
+          writeEmployeeLocalBackup(safeEmployees);
+        } else {
+          console.warn(
+            "RPI protection: BLOCKED an empty employee overwrite. Employee data was not changed in Firebase.",
+          );
+        }
+
+        return database
+          .ref("portalData")
+          .update(updates)
+          .then(() => {
+            console.log(
+              "Real-time Sync: data saved; empty employee overwrites are blocked.",
+            );
+          })
+          .catch((error) => {
+            console.error("Cloud Sync Error: ", error);
+            alert(
+              `Save failed in Firebase: ${error.message || "unknown error"}. Your latest changes were not saved to cloud.`,
+            );
+            throw error;
+          });
+      }
+
+'''
+
+          new_sync = r'''      // This function enables real-time cloud sync while keeping employee data protected.
+      function initCloudSync() {
+        const employeeRef = database.ref("portalData/employees");
+
+        // Employee data gets its own listener so an unrelated portal update can never
+        // replace the in-memory employee list with null/empty data.
+        employeeRef.on("value", (snapshot) => {
+          const cloudEmployees = snapshot.val();
+
+          if (Array.isArray(cloudEmployees) && cloudEmployees.length > 0) {
+            employees = sortEmployeesById(cloudEmployees);
+            writeEmployeeLocalBackup(employees);
+            console.log(
+              `Employee cloud sync successful: ${employees.length} employees loaded.`,
+            );
+          } else {
+            const localBackup = readEmployeeLocalBackup();
+
+            if (localBackup.length > 0) {
+              employees = localBackup;
+              console.warn(
+                "RPI protection: Firebase employee list was empty/missing; restored the last local safety backup.",
+              );
+
+              // Restore the protected copy to Firebase, but only after confirming
+              // the backup is non-empty.
+              employeeRef
+                .set(employees)
+                .then(() => {
+                  console.log(
+                    `RPI protection: restored ${employees.length} employees to Firebase.`,
+                  );
+                })
+                .catch((error) => {
+                  console.error(
+                    "RPI employee recovery write failed:",
+                    error,
+                  );
+                });
+            } else {
+              console.warn(
+                "RPI protection: Firebase employee list is empty and no local backup exists; refusing to manufacture or overwrite employee data.",
+              );
+            }
+          }
+
+          const activePage = Array.from(document.querySelectorAll(".page"))
+            .find((p) => p.style.display === "block")?.id;
+          if (activePage === "page1") renderEmployeeList();
+          if (activePage === "page4") renderAdminPanel();
+        });
+
+        database.ref("portalData").on("value", (snapshot) => {
+          const data = snapshot.val();
+          if (!data) return;
+
+          projects = data.projects || [];
+          expenseRecords = data.expenseRecords || [];
+          materialRecords = data.materialRecords || [];
+          USER_PROFILES = {
+            ...DEFAULT_USER_PROFILES,
+            ...(data.userProfiles || {}),
+          };
+          normalizeProjectsData();
+
+          const activePage = Array.from(document.querySelectorAll(".page"))
+            .find((p) => p.style.display === "block")?.id;
+          if (activePage === "page1") renderEmployeeList();
+          if (activePage === "pageExpense") renderExpenses();
+          if (activePage === "pageMaterials") renderMaterials();
+          if (activePage === "page3") renderProjectDashboard();
+          if (activePage === "page4") renderAdminPanel();
+        });
+      }
+
+'''
+
+          text = text[:save_start] + new_save + text[save_end:]
+          # Recalculate after the first replacement.
+          sync_start = text.find('      function initCloudSync() {')
+          sync_end = text.find('      // --- AUTH LOGIC ---', sync_start)
+          text = text[:sync_start] + new_sync + text[sync_end:]
+
+          path.write_text(text, encoding='utf-8')
+          print('Employee data protection patch applied.')
+          PY
+
+      - name: Validate patched portal
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('index.html').read_text(encoding='utf-8')
+          required = [
+              'function readEmployeeLocalBackup()',
+              'function writeEmployeeLocalBackup(employeeList)',
+              'BLOCKED an empty employee overwrite',
+              'const employeeRef = database.ref("portalData/employees")',
+              'Firebase employee list was empty/missing; restored the last local safety backup',
+          ]
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise SystemExit('Validation failed; missing: ' + ', '.join(missing))
+          print('Employee protection validation passed.')
+          PY
+
+      - name: Commit hardened portal and backup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html backups/
+          git diff --cached --quiet && exit 0
+          git commit -m "Protect employee data from accidental erasure"
+          git push
