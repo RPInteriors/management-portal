@@ -1453,7 +1453,9 @@
       let materialRecords = [];
       // --- MULTI-USER AUTH CONFIG ---
       const DEFAULT_USER_PROFILES = {
-        CEO: "", Administrator: "", Supervisor: "",
+        CEO: "im@ceo!26",
+        Administrator: "im_the_admin+85",
+        Supervisor: "wise_supervisor%94",
       };
       const ROLE_EMAIL_MAP = {
         CEO: "ceo@rpinteriors.local",
@@ -1508,7 +1510,31 @@
         }
       }
 
-      async function ensureForceSyncAuthSession() { if(!auth.currentUser)return null; currentUserRole=getCurrentSignedInRole(); return currentUserRole; }
+      async function ensureForceSyncAuthSession() {
+        if (auth.currentUser) {
+          return getCurrentSignedInRole();
+        }
+
+        for (const role of Object.keys(DEFAULT_USER_PROFILES)) {
+          const email = getRoleEmail(role);
+          const presetPassword = DEFAULT_USER_PROFILES[role];
+          if (!email || !presetPassword) continue;
+
+          try {
+            await auth.signInWithEmailAndPassword(email, presetPassword);
+            currentUserRole = role;
+            sessionStorage.setItem("rp_auth_role", role);
+            return role;
+          } catch (error) {
+            console.warn(
+              `Force auth bootstrap skipped for ${role}:`,
+              error?.code || error,
+            );
+          }
+        }
+
+        return null;
+      }
 
       async function syncRolePasswordToFirebaseAuth(
         role,
@@ -1546,7 +1572,7 @@
         }
       }
 
-      async function handleGlobalLogin() {
+      function handleGlobalLogin() {
         const role = document.getElementById("userRole").value;
         const pass = document.getElementById("globalPassword").value.trim();
         const errorMsg = document.getElementById("loginError");
@@ -1557,12 +1583,11 @@
           return;
         }
 
-        if (await verifyRolePasswordInFirebaseAuth(role, pass)) {
+        if (USER_PROFILES[role] === pass) {
           currentUserRole = role;
           sessionStorage.setItem("rp_auth_role", role);
           document.getElementById("globalPassword").value = "";
           errorMsg.style.display = "none";
-          await database.ref("portalData/userProfiles").remove().catch(error => console.warn("Legacy password cleanup failed:", error));
           initApplication();
         } else {
           errorMsg.textContent = "Invalid credentials!";
@@ -1599,18 +1624,122 @@
       const defaultDailyRate = 1500;
 
       // --- STORAGE LOGIC ---
-      function readEmployeeLocalBackup() { try { const raw=localStorage.getItem("RPI_employee_backup"); const parsed=raw?JSON.parse(raw):[]; return Array.isArray(parsed)&&parsed.length>0?sortEmployeesById(parsed):[]; } catch(error){ console.warn("RPI employee backup read failed:",error); return []; } }
-      function writeEmployeeLocalBackup(employeeList) { if(!Array.isArray(employeeList)||employeeList.length===0)return; try{const safeList=sortEmployeesById(employeeList);localStorage.setItem("RPI_employee_backup",JSON.stringify(safeList));localStorage.setItem("RPI_employee_backup_time",new Date().toISOString());}catch(error){console.warn("RPI local employee backup failed:",error);} }
-      function saveToLocalStorage() { let safeEmployees=Array.isArray(employees)?sortEmployeesById(employees):[]; const backupEmployees=readEmployeeLocalBackup(); if(safeEmployees.length===0&&backupEmployees.length>0){safeEmployees=backupEmployees;employees=safeEmployees;} const updates={projects,expenseRecords,materialRecords}; if(safeEmployees.length>0){employees=safeEmployees;updates.employees=safeEmployees;writeEmployeeLocalBackup(safeEmployees);}else console.warn("RPI protection: BLOCKED an empty employee overwrite. Employee data was not changed in Firebase."); return database.ref("portalData").update(updates).catch(error=>{console.error("Cloud Sync Error:",error);throw error;}); }
+      function readEmployeeLocalBackup() {
+        try {
+          const raw = localStorage.getItem("RPI_employee_backup");
+          const parsed = raw ? JSON.parse(raw) : [];
+          return Array.isArray(parsed) && parsed.length > 0 ? sortEmployeesById(parsed) : [];
+        } catch (error) {
+          console.warn("RPI employee backup read failed:", error);
+          return [];
+        }
+      }
 
-      function initUserProfilesSync() { USER_PROFILES={...DEFAULT_USER_PROFILES}; }
+      function writeEmployeeLocalBackup(employeeList) {
+        if (!Array.isArray(employeeList) || employeeList.length === 0) return;
+        try {
+          const safeList = sortEmployeesById(employeeList);
+          localStorage.setItem("RPI_employee_backup", JSON.stringify(safeList));
+          localStorage.setItem("RPI_employee_backup_time", new Date().toISOString());
+        } catch (error) {
+          console.warn("RPI local employee backup failed:", error);
+        }
+      }
 
-      async function applyForcedCodePasswords() { throw new Error("Legacy code-password recovery is disabled."); }
+      function saveToLocalStorage() {
+        let safeEmployees = Array.isArray(employees) ? sortEmployeesById(employees) : [];
+        const backupEmployees = readEmployeeLocalBackup();
+        if (safeEmployees.length === 0 && backupEmployees.length > 0) {
+          safeEmployees = backupEmployees;
+          employees = safeEmployees;
+        }
+        const updates = {
+          projects,
+          expenseRecords,
+          materialRecords,
+          userProfiles: USER_PROFILES,
+        };
+        if (safeEmployees.length > 0) {
+          employees = safeEmployees;
+          updates.employees = safeEmployees;
+          writeEmployeeLocalBackup(safeEmployees);
+        } else {
+          console.warn("RPI protection: BLOCKED an empty employee overwrite. Employee data was not changed in Firebase.");
+        }
+        return database.ref("portalData").update(updates).catch((error) => {
+          console.error("Cloud Sync Error:", error);
+          throw error;
+        });
+      }
 
+      function initUserProfilesSync() {
+        database.ref("portalData/userProfiles").on("value", (snapshot) => {
+          if (FORCE_CODE_PASSWORDS) return;
+          USER_PROFILES = {
+            ...DEFAULT_USER_PROFILES,
+            ...(snapshot.val() || {}),
+          };
+        });
+      }
+
+      async function applyForcedCodePasswords() {
+        USER_PROFILES = { ...DEFAULT_USER_PROFILES };
+        await database.ref("portalData/userProfiles").set(USER_PROFILES);
+        alert(
+          "Preset passwords were restored successfully. Set FORCE_CODE_PASSWORDS back to false after confirming login works.",
+        );
+        console.log(
+          "Emergency password reset applied from code. Set FORCE_CODE_PASSWORDS back to false after access is restored.",
+        );
+                                        }
+
+      // This function replaces loadFromLocalStorage to enable real-time cloud sync
       function initCloudSync() {
-        const employeeRef=database.ref("portalData/employees");
-        employeeRef.on("value",snapshot=>{const cloudEmployees=snapshot.val();if(Array.isArray(cloudEmployees)&&cloudEmployees.length>0){employees=sortEmployeesById(cloudEmployees);writeEmployeeLocalBackup(employees);}else{const backupEmployees=readEmployeeLocalBackup();if(backupEmployees.length>0){employees=backupEmployees;employeeRef.set(employees).catch(error=>console.error("RPI employee recovery write failed:",error));}else console.warn("RPI protection: no employee backup available; refusing empty overwrite.");}const activePage=Array.from(document.querySelectorAll(".page")).find(page=>page.style.display==="block")?.id;if(activePage==="page1")renderEmployeeList();if(activePage==="page4")renderAdminPanel();});
-        database.ref("portalData").on("value",snapshot=>{const data=snapshot.val();if(!data)return;projects=data.projects||[];expenseRecords=data.expenseRecords||[];materialRecords=data.materialRecords||[];normalizeProjectsData();const activePage=Array.from(document.querySelectorAll(".page")).find(page=>page.style.display==="block")?.id;if(activePage==="page1")renderEmployeeList();if(activePage==="pageExpense")renderExpenses();if(activePage==="pageMaterials")renderMaterials();if(activePage==="page3")renderProjectDashboard();if(activePage==="page4")renderAdminPanel();});
+        const employeeRef = database.ref("portalData/employees");
+        employeeRef.on("value", (snapshot) => {
+          const cloudEmployees = snapshot.val();
+          if (Array.isArray(cloudEmployees) && cloudEmployees.length > 0) {
+            employees = sortEmployeesById(cloudEmployees);
+            writeEmployeeLocalBackup(employees);
+          } else {
+            const backupEmployees = readEmployeeLocalBackup();
+            if (backupEmployees.length > 0) {
+              employees = backupEmployees;
+              employeeRef.set(employees).catch((error) =>
+                console.error("RPI employee recovery write failed:", error),
+              );
+            } else {
+              console.warn(
+                "RPI protection: no employee backup available; refusing empty overwrite.",
+              );
+            }
+          }
+          const activePage = Array.from(document.querySelectorAll(".page")).find(
+            (page) => page.style.display === "block",
+          )?.id;
+          if (activePage === "page1") renderEmployeeList();
+          if (activePage === "page4") renderAdminPanel();
+        });
+        database.ref("portalData").on("value", (snapshot) => {
+          const data = snapshot.val();
+          if (!data) return;
+          projects = data.projects || [];
+          expenseRecords = data.expenseRecords || [];
+          materialRecords = data.materialRecords || [];
+          USER_PROFILES = {
+            ...DEFAULT_USER_PROFILES,
+            ...(data.userProfiles || {}),
+          };
+          normalizeProjectsData();
+          const activePage = Array.from(document.querySelectorAll(".page")).find(
+            (page) => page.style.display === "block",
+          )?.id;
+          if (activePage === "page1") renderEmployeeList();
+          if (activePage === "pageExpense") renderExpenses();
+          if (activePage === "pageMaterials") renderMaterials();
+          if (activePage === "page3") renderProjectDashboard();
+          if (activePage === "page4") renderAdminPanel();
+        });
       }
 
       // --- AUTH LOGIC ---
@@ -1625,7 +1754,7 @@
         document.getElementById("loginOverlay").style.display = "flex";
       }
 
-      async function login() {
+      function login() {
         const pass = document.getElementById("adminPassword").value;
         // Admin Panel strictly requires Administrator credentials
         if (currentUserRole !== "Administrator") {
@@ -1633,7 +1762,7 @@
           return;
         }
 
-        if (await verifyRolePasswordInFirebaseAuth("Administrator", pass)) {
+        if (pass === USER_PROFILES["Administrator"]) {
           document.getElementById("loginOverlay").style.display = "none";
           document.getElementById("adminPassword").value = "";
           showPage("page4");
@@ -1756,7 +1885,7 @@
           return;
         }
 
-        if (!(await verifyRolePasswordInFirebaseAuth(role, oldPassword))) {
+        if (USER_PROFILES[role] !== oldPassword) {
           alert("Old password is incorrect.");
           return;
         }
@@ -1945,7 +2074,8 @@
             return;
           }
 
-          await syncRolePasswordToFirebaseAuth(role, oldPassword, password);
+          USER_PROFILES[role] = password;
+          await database.ref("portalData/userProfiles").set(USER_PROFILES);
           clearStoredPasswordResetOtp(role);
 
           document.getElementById("globalPassword").value = "";
@@ -2014,7 +2144,8 @@
             return;
           }
 
-          await syncRolePasswordToFirebaseAuth(role, oldPassword, password);
+          USER_PROFILES[role] = password;
+          await database.ref("portalData/userProfiles").set(USER_PROFILES);
           clearStoredPasswordResetOtp(role);
 
           document.getElementById("resetUserRole").value = "";
@@ -2083,7 +2214,8 @@
             return;
           }
 
-          await syncRolePasswordToFirebaseAuth(role, oldPassword, password);
+          USER_PROFILES[role] = password;
+          await database.ref("portalData/userProfiles").set(USER_PROFILES);
           clearStoredPasswordResetOtp(role);
 
           document.getElementById("resetUserRole").value = "";
