@@ -1624,6 +1624,54 @@
       const defaultDailyRate = 1500;
 
       // --- STORAGE LOGIC ---
+      // Redefining the function name used 21 times to now sync with the Cloud
+      // --- STORAGE LOGIC ---
+      function readEmployeeLocalBackup() {
+        try {
+          const raw = localStorage.getItem("RPI_employee_backup");
+          const parsed = raw ? JSON.parse(raw) : [];
+          return Array.isArray(parsed) && parsed.length > 0 ? sortEmployeesById(parsed) : [];
+        } catch (error) {
+          console.warn("RPI employee backup read failed:", error);
+          return [];
+        }
+      }
+
+      function writeEmployeeLocalBackup(employeeList) {
+        if (!Array.isArray(employeeList) || employeeList.length === 0) return;
+        try {
+          const safeList = sortEmployeesById(employeeList);
+          localStorage.setItem("RPI_employee_backup", JSON.stringify(safeList));
+          localStorage.setItem("RPI_employee_backup_time", new Date().toISOString());
+        } catch (error) {
+          console.warn("RPI local employee backup failed:", error);
+        }
+      }
+
+      // --- STORAGE LOGIC ---
+      function readEmployeeLocalBackup() {
+        try {
+          const raw = localStorage.getItem("RPI_employee_backup");
+          const parsed = raw ? JSON.parse(raw) : [];
+          return Array.isArray(parsed) && parsed.length > 0 ? sortEmployeesById(parsed) : [];
+        } catch (error) {
+          console.warn("RPI employee backup read failed:", error);
+          return [];
+        }
+      }
+
+      function writeEmployeeLocalBackup(employeeList) {
+        if (!Array.isArray(employeeList) || employeeList.length === 0) return;
+        try {
+          const safeList = sortEmployeesById(employeeList);
+          localStorage.setItem("RPI_employee_backup", JSON.stringify(safeList));
+          localStorage.setItem("RPI_employee_backup_time", new Date().toISOString());
+        } catch (error) {
+          console.warn("RPI local employee backup failed:", error);
+        }
+      }
+
+      // --- STORAGE LOGIC ---
       function readEmployeeLocalBackup() {
         try {
           const raw = localStorage.getItem("RPI_employee_backup");
@@ -1657,7 +1705,7 @@
           projects,
           expenseRecords,
           materialRecords,
-          userProfiles: USER_PROFILES,
+          userProfiles: USER_PROFILES
         };
         if (safeEmployees.length > 0) {
           employees = safeEmployees;
@@ -1666,7 +1714,7 @@
         } else {
           console.warn("RPI protection: BLOCKED an empty employee overwrite. Employee data was not changed in Firebase.");
         }
-        return database.ref("portalData").update(updates).catch((error) => {
+        return database.ref("portalData").update(updates).catch(error => {
           console.error("Cloud Sync Error:", error);
           throw error;
         });
@@ -1696,7 +1744,7 @@
       // This function replaces loadFromLocalStorage to enable real-time cloud sync
       function initCloudSync() {
         const employeeRef = database.ref("portalData/employees");
-        employeeRef.on("value", (snapshot) => {
+        employeeRef.on("value", snapshot => {
           const cloudEmployees = snapshot.val();
           if (Array.isArray(cloudEmployees) && cloudEmployees.length > 0) {
             employees = sortEmployeesById(cloudEmployees);
@@ -1705,35 +1753,24 @@
             const backupEmployees = readEmployeeLocalBackup();
             if (backupEmployees.length > 0) {
               employees = backupEmployees;
-              employeeRef.set(employees).catch((error) =>
-                console.error("RPI employee recovery write failed:", error),
-              );
+              employeeRef.set(employees).catch(error => console.error("RPI employee recovery write failed:", error));
             } else {
-              console.warn(
-                "RPI protection: no employee backup available; refusing empty overwrite.",
-              );
+              console.warn("RPI protection: no employee backup available; refusing empty overwrite.");
             }
           }
-          const activePage = Array.from(document.querySelectorAll(".page")).find(
-            (page) => page.style.display === "block",
-          )?.id;
+          const activePage = Array.from(document.querySelectorAll(".page")).find(page => page.style.display === "block")?.id;
           if (activePage === "page1") renderEmployeeList();
           if (activePage === "page4") renderAdminPanel();
         });
-        database.ref("portalData").on("value", (snapshot) => {
+        database.ref("portalData").on("value", snapshot => {
           const data = snapshot.val();
           if (!data) return;
           projects = data.projects || [];
           expenseRecords = data.expenseRecords || [];
           materialRecords = data.materialRecords || [];
-          USER_PROFILES = {
-            ...DEFAULT_USER_PROFILES,
-            ...(data.userProfiles || {}),
-          };
+          USER_PROFILES = { ...DEFAULT_USER_PROFILES, ...(data.userProfiles || {}) };
           normalizeProjectsData();
-          const activePage = Array.from(document.querySelectorAll(".page")).find(
-            (page) => page.style.display === "block",
-          )?.id;
+          const activePage = Array.from(document.querySelectorAll(".page")).find(page => page.style.display === "block")?.id;
           if (activePage === "page1") renderEmployeeList();
           if (activePage === "pageExpense") renderExpenses();
           if (activePage === "pageMaterials") renderMaterials();
