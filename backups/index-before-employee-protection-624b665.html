@@ -1648,29 +1648,6 @@
         }
       }
 
-      // --- STORAGE LOGIC ---
-      function readEmployeeLocalBackup() {
-        try {
-          const raw = localStorage.getItem("RPI_employee_backup");
-          const parsed = raw ? JSON.parse(raw) : [];
-          return Array.isArray(parsed) && parsed.length > 0 ? sortEmployeesById(parsed) : [];
-        } catch (error) {
-          console.warn("RPI employee backup read failed:", error);
-          return [];
-        }
-      }
-
-      function writeEmployeeLocalBackup(employeeList) {
-        if (!Array.isArray(employeeList) || employeeList.length === 0) return;
-        try {
-          const safeList = sortEmployeesById(employeeList);
-          localStorage.setItem("RPI_employee_backup", JSON.stringify(safeList));
-          localStorage.setItem("RPI_employee_backup_time", new Date().toISOString());
-        } catch (error) {
-          console.warn("RPI local employee backup failed:", error);
-        }
-      }
-
       function saveToLocalStorage() {
         let safeEmployees = Array.isArray(employees) ? sortEmployeesById(employees) : [];
         const backupEmployees = readEmployeeLocalBackup();
