@@ -1,6 +1,7 @@
 name: RPI Employee Protection
 
-on: push
+on:
+  push:
 
 permissions:
   contents: write
@@ -9,18 +10,18 @@ jobs:
   protect:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Apply protection
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Apply employee protection
         run: python3 scripts/harden_employee.py
-      - name: Verify protection
+      - name: Verify employee protection
         run: |
           grep -q 'function readEmployeeLocalBackup()' index.html
           grep -q 'function writeEmployeeLocalBackup(employeeList)' index.html
           grep -q 'BLOCKED an empty employee overwrite' index.html
           grep -q 'database.ref("portalData/employees")' index.html
-      - name: Commit protection
+          echo 'Employee protection verification passed'
+      - name: Commit employee protection
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
