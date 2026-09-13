@@ -13,15 +13,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Apply final security hardening
-        run: python3 scripts/finalize_security.py
+        run: python3 scripts/finalize_security_v3.py
       - name: Verify final security hardening
         run: |
           grep -q 'function readEmployeeLocalBackup()' index.html
           grep -q 'function writeEmployeeLocalBackup(employeeList)' index.html
           grep -q 'BLOCKED an empty employee overwrite' index.html
           grep -q 'database.ref("portalData/employees")' index.html
-          grep -q 'auth.signInWithEmailAndPassword(email,pass)' index.html
-          grep -q 'verifyRolePasswordInFirebaseAuth("Administrator",pass)' index.html
+          grep -q 'verifyRolePasswordInFirebaseAuth(role, pass)' index.html
+          grep -q 'verifyRolePasswordInFirebaseAuth("Administrator", pass)' index.html
           ! grep -q 'im@ceo!26' index.html
           ! grep -q 'im_the_admin+85' index.html
           ! grep -q 'wise_supervisor%94' index.html
