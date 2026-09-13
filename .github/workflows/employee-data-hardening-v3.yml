@@ -15,7 +15,7 @@ jobs:
       - name: Apply final security hardening
         run: python3 scripts/finalize_security_v3.py
       - name: Harden credential recovery
-        run: python3 scripts/credential_safety_v4.py
+        run: python3 scripts/credential_safety_v5.py
       - name: Verify final security hardening
         run: |
           grep -q 'function readEmployeeLocalBackup()' index.html
