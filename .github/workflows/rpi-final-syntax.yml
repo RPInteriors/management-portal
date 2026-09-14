@@ -1,0 +1,34 @@
+name: RPI Final Syntax Repair
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: "!contains(github.event.head_commit.message, '[rpi-final-syntax]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair repeated async declarations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s2=re.sub(r'\basync(?:\s+async)+\s+function\s+(handleGlobalLogin|login)\s*\(\)', r'async function \1()', s)
+          if s2==s:
+              print('No syntax repair needed')
+          else:
+              p.write_text(s2,encoding='utf-8')
+              print('Syntax repaired')
+          PY
+      - name: Commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Repair portal syntax [rpi-final-syntax]'
+          git push origin main
