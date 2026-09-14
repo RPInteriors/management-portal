@@ -1,15 +1,184 @@
 name: RPI Employee Protection
 
-# Retired: replaced by the single RPI Data Safety Fix workflow.
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  retired:
-    if: ${{ false }}
+  protect:
+    if: "!contains(github.event.head_commit.message, '[rpi-data-safety-fix]')"
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Retired workflow"
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Apply data safety hardening
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          # Repair accidental repeated async tokens on the Administrator login.
+          s = re.sub(r'\basync(?:\s+async)+\s+function login\(\)', 'async function login()', s)
+
+          storage = '''      // --- STORAGE LOGIC ---
+          let lastCloudEmployees = [];
+
+          function readEmployeeLocalBackup() {
+            try {
+              const raw = localStorage.getItem("RPI_employee_backup");
+              const parsed = raw ? JSON.parse(raw) : [];
+              return Array.isArray(parsed) && parsed.length > 0 ? sortEmployeesById(parsed) : [];
+            } catch (error) {
+              console.warn("RPI employee backup read failed:", error);
+              return [];
+            }
+          }
+
+          function writeEmployeeLocalBackup(employeeList) {
+            if (!Array.isArray(employeeList) || employeeList.length === 0) return;
+            try {
+              const safeList = sortEmployeesById(employeeList);
+              localStorage.setItem("RPI_employee_backup", JSON.stringify(safeList));
+              localStorage.setItem("RPI_employee_backup_time", new Date().toISOString());
+            } catch (error) {
+              console.warn("RPI local employee backup failed:", error);
+            }
+          }
+
+          function employeeMap(list) {
+            const map = {};
+            (Array.isArray(list) ? list : []).forEach((employee) => {
+              if (employee && employee.id) map[employee.id] = employee;
+            });
+            return map;
+          }
+
+          function saveToLocalStorage() {
+            const localEmployees = Array.isArray(employees) ? sortEmployeesById(employees) : [];
+            const backupEmployees = readEmployeeLocalBackup();
+            if (localEmployees.length === 0 && backupEmployees.length > 0) employees = backupEmployees;
+
+            const localMap = employeeMap(employees);
+            const baselineMap = employeeMap(lastCloudEmployees);
+            writeEmployeeLocalBackup(employees);
+
+            return database.ref("portalData").transaction((currentData) => {
+              const remote = currentData && typeof currentData === "object" ? currentData : {};
+              const remoteEmployees = Array.isArray(remote.employees) ? remote.employees : [];
+              const remoteMap = employeeMap(remoteEmployees);
+
+              Object.keys(localMap).forEach((id) => {
+                if (JSON.stringify(localMap[id]) !== JSON.stringify(baselineMap[id])) {
+                  remoteMap[id] = localMap[id];
+                }
+              });
+
+              const mergedEmployees = Object.values(remoteMap).sort((a, b) =>
+                String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true, sensitivity: 'base' })
+              );
+
+              return {
+                ...remote,
+                projects,
+                employees: mergedEmployees,
+                expenseRecords,
+                materialRecords,
+                userProfiles: USER_PROFILES,
+              };
+            }).then((result) => {
+              const saved = result.snapshot.val() || {};
+              lastCloudEmployees = Array.isArray(saved.employees) ? sortEmployeesById(saved.employees) : [];
+              employees = lastCloudEmployees.slice();
+              writeEmployeeLocalBackup(employees);
+              console.log("RPI: save completed with transactional employee merge.");
+              return result;
+            }).catch((error) => {
+              console.error("Cloud Sync Error:", error);
+              alert(`Save failed in Firebase: ${error.message || "unknown error"}. Your latest changes were not saved to cloud.`);
+              throw error;
+            });
+          }
+
+          function initUserProfilesSync() { USER_PROFILES = { ...DEFAULT_USER_PROFILES }; }
+
+          async function applyForcedCodePasswords() { throw new Error("Legacy code-password recovery is disabled."); }
+
+'''
+          start = s.find('      // --- STORAGE LOGIC ---')
+          end = s.find('      // --- AUTH LOGIC ---', start)
+          if start < 0 or end < 0:
+              raise SystemExit('Storage/auth markers not found')
+          s = s[:start] + storage + s[end:]
+
+          cloud = '''      function initCloudSync() {
+            const employeeRef = database.ref("portalData/employees");
+            employeeRef.on("value", (snapshot) => {
+              const cloudEmployees = snapshot.val();
+              if (Array.isArray(cloudEmployees) && cloudEmployees.length > 0) {
+                employees = sortEmployeesById(cloudEmployees);
+                lastCloudEmployees = employees.slice();
+                writeEmployeeLocalBackup(employees);
+              } else {
+                const backupEmployees = readEmployeeLocalBackup();
+                if (backupEmployees.length > 0) {
+                  employees = backupEmployees;
+                  lastCloudEmployees = [];
+                  employeeRef.transaction((currentEmployees) => {
+                    if (Array.isArray(currentEmployees) && currentEmployees.length > 0) return currentEmployees;
+                    return backupEmployees;
+                  }).catch((error) => console.error("RPI employee recovery write failed:", error));
+                } else {
+                  console.warn("RPI protection: no employee backup available; refusing empty overwrite.");
+                }
+              }
+              const activePage = Array.from(document.querySelectorAll(".page")).find((page) => page.style.display === "block")?.id;
+              if (activePage === "page1") renderEmployeeList();
+              if (activePage === "page4") renderAdminPanel();
+            });
+            database.ref("portalData").on("value", (snapshot) => {
+              const data = snapshot.val();
+              if (!data) return;
+              projects = data.projects || [];
+              expenseRecords = data.expenseRecords || [];
+              materialRecords = data.materialRecords || [];
+              normalizeProjectsData();
+              const activePage = Array.from(document.querySelectorAll(".page")).find((page) => page.style.display === "block")?.id;
+              if (activePage === "page1") renderEmployeeList();
+              if (activePage === "pageExpense") renderExpenses();
+              if (activePage === "pageMaterials") renderMaterials();
+              if (activePage === "page3") renderProjectDashboard();
+              if (activePage === "page4") renderAdminPanel();
+            });
+          }
+
+'''
+          start = s.find('      function initCloudSync()')
+          end = s.find('      // --- AUTH LOGIC ---', start)
+          if start < 0 or end < 0:
+              raise SystemExit('Cloud/auth markers not found')
+          s = s[:start] + cloud + s[end:]
+
+          # Validate the critical syntax and safety invariants before committing.
+          if not re.search(r'\basync function login\(\)', s): raise SystemExit('login syntax not repaired')
+          if re.search(r'\basync(?:\s+async)+\s+function login\(\)', s): raise SystemExit('repeated async remains')
+          if len(re.findall(r'function saveToLocalStorage\s*\(', s)) != 1: raise SystemExit('save function count invalid')
+          if len(re.findall(r'function initCloudSync\s*\(', s)) != 1: raise SystemExit('cloud sync function count invalid')
+          if 'database.ref("portalData").transaction' not in s: raise SystemExit('transactional save missing')
+          if 'lastCloudEmployees' not in s: raise SystemExit('cloud baseline missing')
+
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit safety fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Fix employee data overwrite and sync safety [rpi-data-safety-fix]'
+          git push origin main
