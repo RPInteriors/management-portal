@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repair repeated async declarations
+      - name: Repair portal login and password change code
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -18,11 +18,15 @@ jobs:
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
           s2=re.sub(r'\basync(?:\s+async)+\s+function\s+(handleGlobalLogin|login)\s*\(\)', r'async function \1()', s)
+          marker='''      async function resetUserPassword() {\n        const role = document.getElementById("resetUserRole").value;'''
+          replacement='''      async function resetUserPassword() {\n        const role = document.getElementById("resetUserRole").value;\n        const oldPassword = document.getElementById("resetUserOldPassword").value;'''
+          if marker in s2 and 'const oldPassword = document.getElementById("resetUserOldPassword").value;' not in s2[s2.find(marker):s2.find(marker)+500]:
+              s2=s2.replace(marker,replacement,1)
           if s2==s:
-              print('No syntax repair needed')
+              print('No repair needed')
           else:
               p.write_text(s2,encoding='utf-8')
-              print('Syntax repaired')
+              print('Portal login/password code repaired')
           PY
       - name: Commit repair
         run: |
@@ -30,5 +34,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Repair portal syntax [rpi-final-syntax]'
+          git commit -m 'Repair password change [rpi-final-syntax]'
           git push origin main
