@@ -20,7 +20,7 @@ jobs:
           import re
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
-          s = s.replace('async async function login()', 'async function login()')
+          s = re.sub(r'\basync(?:\s+async)+\s+function login\(\)', 'async function login()', s)
           storage = '''      // --- STORAGE LOGIC ---
           let lastCloudEmployees = [];
 
@@ -161,6 +161,7 @@ jobs:
         run: |
           grep -q 'async function login()' index.html
           ! grep -q 'async async function login()' index.html
+          ! grep -q 'async async async function login()' index.html
           test "$(grep -c 'function saveToLocalStorage' index.html)" -eq 1
           grep -q 'lastCloudEmployees' index.html
           grep -q 'database.ref("portalData").transaction' index.html
