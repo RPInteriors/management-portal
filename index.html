@@ -820,22 +820,24 @@
           style="display: none"
         >
           <p>
-            Enter the email address registered in Firebase Authentication for the selected role.
+            Enter the email address used for this Firebase account. The password-reset link will be sent directly by Firebase.
           </p>
           <input
             type="email"
             id="forgotPasswordEmail"
-            placeholder="Registered Firebase email address"
+            placeholder="Enter registered email address"
             autocomplete="email"
+            inputmode="email"
           />
           <button
             class="btn-login"
             type="button"
             style="background: #2980b9; margin-top: 8px"
-            onclick="completeForgotPasswordReset()"
+            onclick="completeForgotPasswordReset(this)"
           >
             Send Password Reset Link
           </button>
+          <p id="forgotPasswordStatus" style="display:none;margin:10px 0 0;font-size:.85em;"></p>
         </div>
         <p id="loginError" style="color: red; font-size: 0.8em; display: none">
           Invalid credentials!
@@ -1127,121 +1129,27 @@
 
         <div class="admin-form">
           <h3>User Password Reset</h3>
-          <select id="resetUserRole">
-            <option value="">Select User Role</option>
-            <option value="CEO">CEO</option>
-            <option value="Administrator">Administrator</option>
-            <option value="Supervisor">Supervisor</option>
-          </select>
-          <div class="password-wrap">
-            <input
-              type="password"
-              id="resetUserOldPassword"
-              placeholder="Enter Old Password"
-            />
-            <label class="show-pass-label">
-              <input
-                type="checkbox"
-                onchange="
-                  togglePasswordVisibility('resetUserOldPassword', this.checked)
-                "
-              />
-              Show
-            </label>
-          </div>
-          <div class="password-wrap">
-            <input
-              type="password"
-              id="resetUserPassword"
-              placeholder="Enter New Password"
-            />
-            <label class="show-pass-label">
-              <input
-                type="checkbox"
-                onchange="
-                  togglePasswordVisibility('resetUserPassword', this.checked)
-                "
-              />
-              Show
-            </label>
-          </div>
-          <div class="password-wrap">
-            <input
-              type="password"
-              id="resetUserPasswordConfirm"
-              placeholder="Confirm New Password"
-            />
-            <label class="show-pass-label">
-              <input
-                type="checkbox"
-                onchange="
-                  togglePasswordVisibility(
-                    'resetUserPasswordConfirm',
-                    this.checked,
-                  )
-                "
-              />
-              Show
-            </label>
-          </div>
-
-          <div
-            style="
-              display: flex;
-              gap: 10px;
-              flex-wrap: wrap;
-              align-items: center;
-            "
+          <p style="margin:0 0 10px;color:#5d6d7e;font-size:.9em">
+            Enter the actual email address registered for the Firebase Authentication account.
+            Firebase will send the password-reset link directly to that mailbox.
+          </p>
+          <input
+            type="email"
+            id="adminResetEmail"
+            placeholder="Registered Firebase email address"
+            autocomplete="email"
+            inputmode="email"
+            style="width:100%;box-sizing:border-box;margin:0 0 10px"
+          />
+          <button
+            class="btn-add"
+            type="button"
+            style="background:#8e44ad"
+            onclick="resetUserPasswordWithoutOldPassword(this)"
           >
-            <input
-              type="text"
-              id="resetUserOtp"
-              placeholder="Enter Email OTP"
-              style="flex: 1; min-width: 220px"
-            />
-            <button
-              class="btn-add"
-              type="button"
-              style="background: #2980b9"
-              onclick="sendPasswordResetOtp(this)"
-            >
-              Send Email OTP
-            </button>
-            <button class="btn-add" onclick="resetUserPassword()">
-              Reset Password
-            </button>
-            <button
-              class="btn-add"
-              type="button"
-              style="background: #8e44ad"
-              onclick="toggleChangePasswordForgotBox()"
-            >
-              Forgot Password
-            </button>
-          </div>
-          <div
-            id="changePasswordForgotBox"
-            style="display: none; margin-top: 12px"
-          >
-            <p style="margin: 0 0 10px; color: #5d6d7e; font-size: 0.9em">
-              Enter the Firebase Authentication email registered for this user.
-            </p>
-            <input
-              type="email"
-              id="adminResetEmail"
-              placeholder="Registered Firebase email address"
-              autocomplete="email"
-              style="width:100%;box-sizing:border-box;margin:0 0 10px"
-            />
-            <button
-              class="btn-add"
-              type="button"
-              style="background: #8e44ad"
-              onclick="resetUserPasswordWithoutOldPassword()"
-            >
-              Send Secure Password Reset Email
-            </button>
-          </div>
+            Send Password Reset Link
+          </button>
+          <p id="adminResetStatus" style="display:none;margin:10px 0 0;font-size:.85em;"></p>
 
           <h3>Project Financial & Status Management</h3>
           <table style="font-size: 0.85em">
@@ -1456,21 +1364,14 @@
       firebase.initializeApp(firebaseConfig);
       const database = firebase.database();
       const auth = firebase.auth();
-      const PASSWORD_RESET_EMAIL_CONFIG = {
-        publicKey: "fN-Ut2qPUTYXjEkVa",
-        serviceId: "service_nfv0kdl",
-        templateId: "template_2dwz8md",
-        defaultRecipientEncoded: "bi5iLmthbmF1aml5YTk0QGdtYWlsLmNvbQ==",
+      // Password recovery is handled by Firebase Authentication.
+      // The user enters the actual email address registered in Firebase Auth.
+      // No client-side OTP or EmailJS dependency is required for password reset.
+      const PASSWORD_RESET_ACTION_CODE_SETTINGS = {
+        url: "https://rpinteriors.github.io/management-portal/",
+        handleCodeInApp: false,
       };
-      const PASSWORD_RESET_OTP_EXPIRY_MS = 5 * 60 * 1000;
-      // EmailJS template variables: {{to_email}}, {{otp_code}}, {{user_role}},
-      // {{app_name}}, {{expires_in_minutes}}
-      if (
-        window.emailjs &&
-        !PASSWORD_RESET_EMAIL_CONFIG.publicKey.startsWith("YOUR_")
-      ) {
-        emailjs.init({ publicKey: PASSWORD_RESET_EMAIL_CONFIG.publicKey });
-      }
+      auth.languageCode = "en";
 
       // Global data variables (now linked to the cloud)
       let projects = [];
@@ -1772,13 +1673,62 @@
         input.type = shouldShow ? "text" : "password";
       }
 
-      function getPasswordResetRecipientEmail() {
+      function setPasswordResetStatus(elementId, message, isError = false) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        el.textContent = message;
+        el.style.display = "block";
+        el.style.color = isError ? "#c0392b" : "#167c5a";
+      }
+
+      function getFirebaseResetErrorMessage(error) {
+        const code = String(error?.code || "");
+        switch (code) {
+          case "auth/invalid-email":
+            return "Please enter a valid email address.";
+          case "auth/user-not-found":
+            return "No Firebase Authentication account was found for this email address.";
+          case "auth/too-many-requests":
+            return "Too many reset requests. Please wait and try again later.";
+          case "auth/unauthorized-continue-uri":
+            return "Firebase is not allowing this portal address for password recovery. Add the portal domain to Firebase Authentication > Settings > Authorized domains.";
+          case "auth/network-request-failed":
+            return "Network error. Check your internet connection and try again.";
+          default:
+            return error?.message || "Unable to send the password reset email.";
+        }
+      }
+
+      async function sendFirebasePasswordReset(email, statusElementId, buttonEl) {
+        const normalizedEmail = String(email || "").trim().toLowerCase();
+        if (!normalizedEmail) {
+          setPasswordResetStatus(statusElementId, "Enter the registered Firebase email address.", true);
+          return false;
+        }
+
+        const originalLabel = buttonEl?.textContent || "";
         try {
-          return atob(
-            PASSWORD_RESET_EMAIL_CONFIG.defaultRecipientEncoded || "",
-          ).trim();
+          if (buttonEl) {
+            buttonEl.disabled = true;
+            buttonEl.textContent = "Sending...";
+          }
+          setPasswordResetStatus(statusElementId, "Sending password reset link…", false);
+          await auth.sendPasswordResetEmail(normalizedEmail, PASSWORD_RESET_ACTION_CODE_SETTINGS);
+          setPasswordResetStatus(
+            statusElementId,
+            "Reset link sent. Check Inbox, Spam/Junk, and Promotions. The email may take a few minutes.",
+            false,
+          );
+          return true;
         } catch (error) {
-          return "";
+          console.error("Firebase password reset error:", error);
+          setPasswordResetStatus(statusElementId, getFirebaseResetErrorMessage(error), true);
+          return false;
+        } finally {
+          if (buttonEl) {
+            buttonEl.disabled = false;
+            buttonEl.textContent = originalLabel || "Send Password Reset Link";
+          }
         }
       }
 
@@ -1789,247 +1739,14 @@
         forgotBox.style.display = isOpen ? "none" : "block";
       }
 
-      function toggleChangePasswordForgotBox() {
-        const forgotBox = document.getElementById("changePasswordForgotBox");
-        if (!forgotBox) return;
-        const isOpen = forgotBox.style.display === "block";
-        forgotBox.style.display = isOpen ? "none" : "block";
+      async function completeForgotPasswordReset(buttonEl) {
+        const email = document.getElementById("forgotPasswordEmail")?.value || "";
+        await sendFirebasePasswordReset(email, "forgotPasswordStatus", buttonEl);
       }
 
-      function isPasswordResetEmailConfigured() {
-        return (
-          window.emailjs &&
-          !PASSWORD_RESET_EMAIL_CONFIG.publicKey.startsWith("YOUR_") &&
-          !PASSWORD_RESET_EMAIL_CONFIG.serviceId.startsWith("YOUR_") &&
-          !PASSWORD_RESET_EMAIL_CONFIG.templateId.startsWith("YOUR_")
-        );
-      }
-
-      function generatePasswordResetOtp() {
-        return Math.floor(100000 + Math.random() * 900000).toString();
-      }
-
-      function getPasswordResetOtpStorageKey(role) {
-        return `rp_password_reset_email_otp_${role}`;
-      }
-
-      function setStoredPasswordResetOtp(role, otpData) {
-        localStorage.setItem(
-          getPasswordResetOtpStorageKey(role),
-          JSON.stringify(otpData),
-        );
-      }
-
-      function getStoredPasswordResetOtp(role) {
-        try {
-          const raw = localStorage.getItem(getPasswordResetOtpStorageKey(role));
-          return raw ? JSON.parse(raw) : null;
-        } catch (error) {
-          return null;
-        }
-      }
-
-      function clearStoredPasswordResetOtp(role) {
-        localStorage.removeItem(getPasswordResetOtpStorageKey(role));
-      }
-
-      async function sendOtpEmailOrThrow(role, recipientEmail, otp) {
-        return emailjs.send(
-          PASSWORD_RESET_EMAIL_CONFIG.serviceId,
-          PASSWORD_RESET_EMAIL_CONFIG.templateId,
-          {
-            to_email: recipientEmail,
-            otp_code: otp,
-            user_role: role,
-            app_name: "RAM PRAKASH INTERIORS",
-            expires_in_minutes: "5",
-          },
-          {
-            publicKey: PASSWORD_RESET_EMAIL_CONFIG.publicKey,
-          },
-        );
-      }
-
-      async function sendPasswordResetOtp(buttonEl) {
-        const role = document.getElementById("resetUserRole").value;
-        const oldPassword = document.getElementById(
-          "resetUserOldPassword",
-        ).value;
-        const recipientEmail = getPasswordResetRecipientEmail();
-        const triggerButton = buttonEl || null;
-        const originalLabel = triggerButton ? triggerButton.textContent : "";
-
-        if (!role || !oldPassword) {
-          alert("Please select role and enter old password first.");
-          return;
-        }
-
-        if (!recipientEmail) {
-          alert("Recovery email is not configured.");
-          return;
-        }
-
-        if (!isPasswordResetEmailConfigured()) {
-          alert(
-            "Please add your EmailJS Public Key, Service ID, and Template ID in code first.",
-          );
-          return;
-        }
-
-        if (!(await verifyRolePasswordInFirebaseAuth(role, oldPassword))) {
-          alert("Old password is incorrect.");
-          return;
-        }
-
-        const otp = generatePasswordResetOtp();
-
-        try {
-          if (triggerButton) {
-            triggerButton.disabled = true;
-            triggerButton.textContent = "Sending OTP...";
-          }
-
-          setStoredPasswordResetOtp(role, {
-            otp,
-            email: recipientEmail,
-            createdAt: Date.now(),
-            expiresAt: Date.now() + PASSWORD_RESET_OTP_EXPIRY_MS,
-            used: false,
-          });
-
-          await sendOtpEmailOrThrow(role, recipientEmail, otp);
-
-          const otpInput = document.getElementById("resetUserOtp");
-          if (otpInput) {
-            otpInput.value = "";
-            setTimeout(() => otpInput.focus(), 50);
-          }
-          alert("OTP sent. Check your recovery email and enter the 6-digit OTP.");
-        } catch (error) {
-          clearStoredPasswordResetOtp(role);
-          alert(error.text || error.message || "Failed to send email OTP.");
-        } finally {
-          if (triggerButton) {
-            triggerButton.disabled = false;
-            triggerButton.textContent = originalLabel || "Send Email OTP";
-          }
-        }
-      }
-
-      
-
-      
-
-      async function completeForgotPasswordReset() {
-        const role = document.getElementById("userRole").value;
-        const emailInput = document.getElementById("forgotPasswordEmail");
-        const email = String(emailInput?.value || getRoleEmail(role) || "").trim();
-
-        if (!email) {
-          alert("Please enter the Firebase Authentication email registered for this account.");
-          return;
-        }
-
-        try {
-          await auth.sendPasswordResetEmail(email);
-          if (emailInput) emailInput.value = "";
-          alert("Password reset link sent. Check the registered Firebase email and follow the reset link.");
-        } catch (error) {
-          console.error("Password reset email error:", error);
-          alert(error.code === "auth/invalid-email"
-            ? "Please enter a valid email address."
-            : "Unable to send the password reset email. Confirm that this email belongs to a Firebase Authentication account.");
-        }
-      }
-
-      async function resetUserPasswordWithoutOldPassword() {
-        const role = document.getElementById("resetUserRole").value;
-        const emailInput = document.getElementById("adminResetEmail");
-        const email = String(emailInput?.value || getRoleEmail(role) || "").trim();
-
-        if (!email) {
-          alert("Enter the Firebase Authentication email registered for this user.");
-          return;
-        }
-
-        try {
-          await auth.sendPasswordResetEmail(email);
-          if (emailInput) emailInput.value = "";
-          alert("Secure password reset link sent to the registered Firebase email.");
-        } catch (error) {
-          console.error("Admin password reset email error:", error);
-          alert(error.code === "auth/invalid-email"
-            ? "Please enter a valid email address."
-            : "Unable to send the password reset email. Confirm that this email belongs to a Firebase Authentication account.");
-        }
-      }
-
-      async function resetUserPassword() {
-        const role = document.getElementById("resetUserRole").value;
-        const oldPassword = document.getElementById("resetUserOldPassword").value;
-        const password = document.getElementById("resetUserPassword").value;
-        const confirmPassword = document.getElementById(
-          "resetUserPasswordConfirm",
-        ).value;
-        const otp = document.getElementById("resetUserOtp").value.trim();
-        const recipientEmail = getPasswordResetRecipientEmail();
-
-        if (!role || !password || !confirmPassword || !otp || !recipientEmail) {
-          alert(
-            "Please fill role, new password, confirm password, and email OTP.",
-          );
-          return;
-        }
-
-        if (password !== confirmPassword) {
-          alert("New password and confirm password do not match.");
-          return;
-        }
-
-        try {
-          const otpData = getStoredPasswordResetOtp(role);
-          if (!otpData) {
-            alert("No OTP request found. Please send email OTP first.");
-            return;
-          }
-
-          if (otpData.used) {
-            alert("This OTP has already been used. Please request a new one.");
-            return;
-          }
-
-          if (Date.now() > otpData.expiresAt) {
-            clearStoredPasswordResetOtp(role);
-            alert("OTP expired. Please request a new email OTP.");
-            return;
-          }
-
-          if (
-            String(otpData.email || "").toLowerCase() !==
-            recipientEmail.toLowerCase()
-          ) {
-            alert("Recovery email does not match the configured recipient.");
-            return;
-          }
-
-          if (String(otpData.otp || "") !== otp) {
-            alert("Invalid email OTP.");
-            return;
-          }
-
-          await syncRolePasswordToFirebaseAuth(role, oldPassword, password);
-          clearStoredPasswordResetOtp(role);
-
-          document.getElementById("resetUserRole").value = "";
-          document.getElementById("resetUserOldPassword").value = "";
-          document.getElementById("resetUserPassword").value = "";
-          document.getElementById("resetUserPasswordConfirm").value = "";
-          document.getElementById("resetUserOtp").value = "";
-
-          alert("Password updated successfully.");
-        } catch (error) {
-          alert(error.message || "Password reset failed.");
-        }
+      async function resetUserPasswordWithoutOldPassword(buttonEl) {
+        const email = document.getElementById("adminResetEmail")?.value || "";
+        await sendFirebasePasswordReset(email, "adminResetStatus", buttonEl);
       }
 
       // --- NAVIGATION ---
@@ -4373,8 +4090,8 @@ function deleteEmployee(id) {
       };
     </script>
     <script>
-      // RPI PWA build 20260919.7: refresh stale iPhone/PWA shells once.
-      const RPI_PWA_BUILD = "20260919.7";
+      // RPI PWA build 20260919.8: refresh stale iPhone/PWA shells once.
+      const RPI_PWA_BUILD = "20260919.8";
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", async () => {
           try {
