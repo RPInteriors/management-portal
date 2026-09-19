@@ -3062,7 +3062,16 @@
 
       
 
-      rrentUserRole === "Administrator";
+      function renderProjectDashboard() {
+        const renderList = (status) => {
+          const filtered = projects.filter((p) => p.status === status);
+          if (filtered.length === 0) return `<p class="empty-state">None</p>`;
+          return filtered
+            .map((p) => {
+              const workers = getProjectEmployeesForToday(p.name);
+              const workerNames =
+                workers.map((w) => w.name).join(", ") || "None";
+              const canDownloadPdf = currentUserRole === "Administrator";
 
               return `<div style="margin-bottom:15px; padding:12px; border-bottom:1px solid #eee;">
                                         <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
