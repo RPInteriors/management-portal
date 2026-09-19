@@ -145,6 +145,31 @@
         line-height: 1.4;
       }
 
+      .otp-label {
+        display: block;
+        margin: 12px 0 6px;
+        color: #14213d;
+        font-weight: 700;
+        font-size: 0.85rem;
+      }
+
+      #forgotPasswordOtp {
+        width: 100%;
+        box-sizing: border-box;
+        text-align: center;
+        letter-spacing: 0.35em;
+        font-size: 1.15rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        border: 2px solid #c9a227 !important;
+        background: #fffdf2;
+      }
+
+      #forgotPasswordOtp::placeholder {
+        letter-spacing: 0.08em;
+        font-weight: 500;
+      }
+
       .auth-secondary-btn {
         background: transparent;
         color: #2c3e50;
@@ -820,13 +845,22 @@
           style="display: none"
         >
           <p>
-            Recovery OTP will be sent to the preset recovery email for the
-            selected role.
+            A 6-digit recovery OTP will be sent to the preset recovery email
+            for the selected role. Enter it in the highlighted OTP box below.
           </p>
+          <label for="forgotPasswordOtp" class="otp-label">Email OTP</label>
           <input
-            type="text"
+            type="tel"
             id="forgotPasswordOtp"
-            placeholder="Enter Email OTP"
+            name="rpi-email-otp"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            autocomplete="one-time-code"
+            maxlength="6"
+            placeholder="Enter 6-digit OTP"
+            aria-label="Enter 6-digit email OTP"
+            autocapitalize="off"
+            spellcheck="false"
           />
           <div class="password-wrap">
             <input
@@ -1889,7 +1923,12 @@
 
           await sendOtpEmailOrThrow(role, recipientEmail, otp);
 
-          alert("OTP sent.");
+          const otpInput = document.getElementById("forgotPasswordOtp");
+          if (otpInput) {
+            otpInput.value = "";
+            setTimeout(() => otpInput.focus(), 50);
+          }
+          alert("OTP sent. Check your recovery email and enter the 6-digit OTP above.");
         } catch (error) {
           clearStoredPasswordResetOtp(role);
           alert(error.text || error.message || "Failed to send email OTP.");
@@ -1906,6 +1945,8 @@
         const recipientEmail = getPasswordResetRecipientEmail();
         const triggerButton = buttonEl || null;
         const originalLabel = triggerButton ? triggerButton.textContent : "";
+        const otpInput = document.getElementById("forgotPasswordOtp");
+        if (otpInput) otpInput.value = "";
 
         if (!role) {
           alert("Please select the user role first.");
