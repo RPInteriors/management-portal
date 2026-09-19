@@ -41,12 +41,12 @@ jobs:
           from pathlib import Path
 
           html = Path("index.html").read_text(encoding="utf-8")
-          ids = re.findall(r'\\bid=["\\']([^"\\']+)["\\']', html)
+          ids = re.findall(r"\\bid=[\"']([^\"']+)[\"']", html)
           duplicates = sorted({x for x in ids if ids.count(x) > 1})
           if duplicates:
               raise SystemExit("Duplicate HTML IDs: " + ", ".join(duplicates))
 
-          refs = set(re.findall(r'getElementById\\(["\\']([^"\\']+)["\\']\\)', html))
+          refs = set(re.findall(r"getElementById\\([\"']([^\"']+)[\"']\\)", html))
           missing = sorted(x for x in refs if f'id="{x}"' not in html and f"id='{x}'" not in html)
           if missing:
               raise SystemExit("Missing getElementById targets: " + ", ".join(missing))
@@ -64,7 +64,7 @@ jobs:
           manifest = Path("manifest.webmanifest").read_text(encoding="utf-8")
           sw = Path("sw.js").read_text(encoding="utf-8")
 
-          m = re.search(r'RPI_PWA_BUILD\\s*=\\s*["\\']([^"\\']+)', index)
+          m = re.search(r"RPI_PWA_BUILD\\s*=\\s*[\"']([^\"']+)", index)
           if not m:
               raise SystemExit("RPI_PWA_BUILD missing from index.html")
           build = m.group(1)
