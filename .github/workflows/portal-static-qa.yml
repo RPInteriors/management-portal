@@ -25,9 +25,9 @@ jobs:
 
           html = Path("index.html").read_text(encoding="utf-8")
           scripts = []
-          for match in re.finditer(r"<script(?:\\s[^>]*)?>(.*?)</script>", html, re.S | re.I):
+          for match in re.finditer(r"<script(?:\s[^>]*)?>(.*?)</script>", html, re.S | re.I):
               scripts.append(match.group(1))
-          Path("/tmp/rpi-inline.js").write_text("\\n;\\n".join(scripts), encoding="utf-8")
+          Path("/tmp/rpi-inline.js").write_text("\n;\n".join(scripts), encoding="utf-8")
           print(f"Extracted {len(scripts)} inline script blocks.")
           PY
 
