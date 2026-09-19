@@ -1911,12 +1911,12 @@
 
           await sendOtpEmailOrThrow(role, recipientEmail, otp);
 
-          const otpInput = document.getElementById("forgotPasswordOtp");
+          const otpInput = document.getElementById("resetUserOtp");
           if (otpInput) {
             otpInput.value = "";
             setTimeout(() => otpInput.focus(), 50);
           }
-          alert("OTP sent. Check your recovery email and enter the 6-digit OTP above.");
+          alert("OTP sent. Check your recovery email and enter the 6-digit OTP.");
         } catch (error) {
           clearStoredPasswordResetOtp(role);
           alert(error.text || error.message || "Failed to send email OTP.");
