@@ -1243,44 +1243,18 @@
             style="display: none; margin-top: 12px"
           >
             <p style="margin: 0 0 10px; color: #5d6d7e; font-size: 0.9em">
-              Use this if you do not know the old password. OTP will go to the
-              preset recovery email.
+              A secure Firebase password-reset email will be sent to the selected role's registered email address.
             </p>
-            <div
-              style="
-                display: flex;
-                gap: 10px;
-                flex-wrap: wrap;
-                align-items: center;
-              "
+            <button
+              class="btn-add"
+              type="button"
+              style="background: #8e44ad"
+              onclick="resetUserPasswordWithoutOldPassword()"
             >
-              <input
-                type="text"
-                id="changePasswordForgotOtp"
-                placeholder="Enter Recovery OTP"
-                style="flex: 1; min-width: 220px"
-              />
-              <button
-                class="btn-add"
-                type="button"
-                style="background: #2980b9"
-                onclick="sendChangePasswordForgotOtp(this)"
-              >
-                Send Recovery OTP
-              </button>
-              <button
-                class="btn-add"
-                type="button"
-                style="background: #8e44ad"
-                onclick="resetUserPasswordWithoutOldPassword()"
-              >
-                Reset Without Old Password
-              </button>
-            </div>
+              Send Secure Password Reset Email
+            </button>
           </div>
-        </div>
 
-        <div class="admin-form">
           <h3>Project Financial & Status Management</h3>
           <table style="font-size: 0.85em">
             <thead>
@@ -1954,111 +1928,9 @@
         }
       }
 
-      async function sendChangePasswordForgotOtp(buttonEl) {
-        const role = document.getElementById("resetUserRole").value;
-        const recipientEmail = getPasswordResetRecipientEmail();
-        const triggerButton = buttonEl || null;
-        const originalLabel = triggerButton ? triggerButton.textContent : "";
-        const otpInput = document.getElementById("forgotPasswordOtp");
-        if (otpInput) otpInput.value = "";
+      
 
-        if (!role) {
-          alert("Please select the user role first.");
-          return;
-        }
-
-        if (!recipientEmail) {
-          alert("Recovery email is not configured.");
-          return;
-        }
-
-        if (!isPasswordResetEmailConfigured()) {
-          alert("Email OTP service is not configured yet.");
-          return;
-        }
-
-        const otp = generatePasswordResetOtp();
-
-        try {
-          if (triggerButton) {
-            triggerButton.disabled = true;
-            triggerButton.textContent = "Sending OTP...";
-          }
-
-          setStoredPasswordResetOtp(role, {
-            otp,
-            email: recipientEmail,
-            createdAt: Date.now(),
-            expiresAt: Date.now() + PASSWORD_RESET_OTP_EXPIRY_MS,
-            used: false,
-            mode: "admin-forgot-password",
-          });
-
-          await sendOtpEmailOrThrow(role, recipientEmail, otp);
-
-          alert("OTP sent.");
-        } catch (error) {
-          clearStoredPasswordResetOtp(role);
-          alert(error.text || error.message || "Failed to send email OTP.");
-        } finally {
-          if (triggerButton) {
-            triggerButton.disabled = false;
-            triggerButton.textContent = originalLabel || "Send Recovery OTP";
-          }
-        }
-      }
-
-      async function sendForgotPasswordOtp(buttonEl) {
-        const role = document.getElementById("userRole").value;
-        const recipientEmail = getPasswordResetRecipientEmail();
-        const triggerButton = buttonEl || null;
-        const originalLabel = triggerButton ? triggerButton.textContent : "";
-
-        if (!role) {
-          alert("Please select the user role first.");
-          return;
-        }
-
-        if (!recipientEmail) {
-          alert("Recovery email is not configured.");
-          return;
-        }
-
-        if (!isPasswordResetEmailConfigured()) {
-          alert("Email OTP service is not configured yet.");
-          return;
-        }
-
-        const otp = generatePasswordResetOtp();
-
-        try {
-          if (triggerButton) {
-            triggerButton.disabled = true;
-            triggerButton.textContent = "Sending OTP...";
-          }
-
-          setStoredPasswordResetOtp(role, {
-            otp,
-            email: recipientEmail,
-            createdAt: Date.now(),
-            expiresAt: Date.now() + PASSWORD_RESET_OTP_EXPIRY_MS,
-            used: false,
-            mode: "login-forgot-password",
-          });
-
-          await sendOtpEmailOrThrow(role, recipientEmail, otp);
-
-          alert("OTP sent.");
-        } catch (error) {
-          clearStoredPasswordResetOtp(role);
-          alert(error.text || error.message || "Failed to send email OTP.");
-        } finally {
-          if (triggerButton) {
-            triggerButton.disabled = false;
-            triggerButton.textContent = originalLabel || "Send Email OTP";
-          }
-        }
-      }
+      
 
       async function completeForgotPasswordReset() {
         const role = document.getElementById("userRole").value;
