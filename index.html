@@ -4846,7 +4846,34 @@ function deleteEmployee(id) {
       };
     </script>
     <script>
-      if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+      // RPI PWA build 20260919.4: refresh stale iPhone/PWA shells once.
+      const RPI_PWA_BUILD = "20260919.4";
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", async () => {
+          try {
+            if (localStorage.getItem("rpi_pwa_build") !== RPI_PWA_BUILD) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(
+                registrations
+                  .filter((registration) => registration.scope.includes("/management-portal/"))
+                  .map((registration) => registration.unregister())
+              );
+              if ("caches" in window) {
+                const cacheKeys = await caches.keys();
+                await Promise.all(
+                  cacheKeys
+                    .filter((key) => key.startsWith("rpi-management-"))
+                    .map((key) => caches.delete(key))
+                );
+              }
+              localStorage.setItem("rpi_pwa_build", RPI_PWA_BUILD);
+            }
+            await navigator.serviceWorker.register("./sw.js?v=" + RPI_PWA_BUILD, { updateViaCache: "none" });
+          } catch (error) {
+            console.warn("RPI PWA refresh failed:", error);
+          }
+        });
+      }
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
       const standalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
       if (isIOS && !standalone && !sessionStorage.getItem("rpiInstallHintShown")) {
