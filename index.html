@@ -1678,7 +1678,29 @@
       // --- STORAGE LOGIC ---
       function readEmployeeLocalBackup() { try { const raw=localStorage.getItem("RPI_employee_backup"); const parsed=raw?JSON.parse(raw):[]; return Array.isArray(parsed)&&parsed.length>0?sortEmployeesById(parsed):[]; } catch(error){ console.warn("RPI employee backup read failed:",error); return []; } }
       function writeEmployeeLocalBackup(employeeList) { if(!Array.isArray(employeeList)||employeeList.length===0)return; try{const safeList=sortEmployeesById(employeeList);localStorage.setItem("RPI_employee_backup",JSON.stringify(safeList));localStorage.setItem("RPI_employee_backup_time",new Date().toISOString());}catch(error){console.warn("RPI local employee backup failed:",error);} }
-      function saveToLocalStorage() { let safeEmployees=Array.isArray(employees)?sortEmployeesById(employees):[]; const backupEmployees=readEmployeeLocalBackup(); if(safeEmployees.length===0&&backupEmployees.length>0){safeEmployees=backupEmployees;employees=safeEmployees;} const updates={projects,expenseRecords,materialRecords}; if(safeEmployees.length>0){employees=safeEmployees;updates.employees=safeEmployees;writeEmployeeLocalBackup(safeEmployees);}else console.warn("RPI protection: BLOCKED an empty employee overwrite. Employee data was not changed in Firebase."); return database.ref("portalData").update(updates).catch(error=>{console.error("Cloud Sync Error:",error);throw error;}); }
+      function saveEmployeesToCloud() {
+        const list = Array.isArray(employees) ? sortEmployeesById(employees) : [];
+        if (!list.length) {
+          console.warn("RPI protection: blocked empty employee save.");
+          return Promise.resolve(false);
+        }
+        employees = list;
+        writeEmployeeLocalBackup(list);
+        return database.ref("portalData/employees").transaction(() => list)
+          .then(result => result.committed)
+          .catch(error => { console.error("Employee Cloud Sync Error:", error); throw error; });
+      }
+
+      function saveToLocalStorage() {
+        // IMPORTANT: never include employees here. This prevents an old browser/tab
+        // with stale employee data from overwriting the current employee database
+        // when saving projects, expenses or materials.
+        const updates = { projects, expenseRecords, materialRecords };
+        return database.ref("portalData").update(updates).catch(error => {
+          console.error("Cloud Sync Error:", error);
+          throw error;
+        });
+      }
 
       function initUserProfilesSync() { USER_PROFILES={...DEFAULT_USER_PROFILES}; }
 
@@ -2554,8 +2576,8 @@
           });
         });
 
-        // Sync to Firebase Cloud
-        saveToLocalStorage();
+        // Sync employee records only; never overwrite employees from a generic portal save.
+        saveEmployeesToCloud();
 
         alert("Attendance Saved and Locked!");
 
@@ -2766,7 +2788,7 @@
           amount: parseInt(amt),
           mode: mode,
         });
-        saveToLocalStorage();
+        saveEmployeesToCloud();
         viewEmployee(empId, month);
       }
 
@@ -2800,7 +2822,7 @@
           payment.amount = parseInt(amtInput.value);
           payment.mode = modeSelect.value;
 
-          saveToLocalStorage();
+          saveEmployeesToCloud();
           alert("Payment updated successfully!");
           viewEmployee(empId, month);
         };
@@ -2812,7 +2834,7 @@
         if (!confirm("Delete this record?")) return;
         const emp = employees.find((e) => e.id === empId);
         emp.payments.splice(idx, 1);
-        saveToLocalStorage();
+        saveEmployeesToCloud();
         viewEmployee(empId, month);
       }
 
@@ -3157,7 +3179,7 @@
           emp.currentProject = selectedProject;
         }
 
-        saveToLocalStorage(); // Sync to Firebase
+        saveEmployeesToCloud(); // Sync employee record to Firebase
         alert(
           `Record updated for ${emp.name} on ${formattedDate}. Calculated Days: ${dayMultiplier}`,
         );
@@ -3251,6 +3273,7 @@
         }
 
         saveToLocalStorage();
+        saveEmployeesToCloud();
         cancelProjectEdit();
         renderAdminPanel();
         alert("Project updated successfully!");
@@ -3484,6 +3507,7 @@
           if (e.currentProject === name) e.currentProject = "";
         });
         saveToLocalStorage();
+        saveEmployeesToCloud();
         renderAdminPanel();
       }
 
@@ -3777,6 +3801,7 @@
           seedProjectPaymentForm();
 
           saveToLocalStorage();
+          saveEmployeesToCloud();
           renderAdminPanel();
           renderProjectDashboard();
         } else {
@@ -4115,9 +4140,10 @@
           document.getElementById("newEmpPhoto").value = "";
           document.getElementById("newEmpAadhar").value = "";
 
-          saveToLocalStorage();
-          renderAdminPanel();
-          alert("Employee Registered Successfully!");
+          saveEmployeesToCloud().then(() => {
+            renderAdminPanel();
+            alert("Employee Registered Successfully!");
+          }).catch(() => alert("Employee could not be saved to cloud. Please try again."));
         } else {
           alert("Please enter ID, Name, and Age.");
         }
@@ -4213,10 +4239,11 @@
           aadhar: aadharData,
         };
 
-        saveToLocalStorage();
-        cancelEmployeeEdit();
-        renderAdminPanel();
-        alert("Employee updated successfully!");
+        saveEmployeesToCloud().then(() => {
+          cancelEmployeeEdit();
+          renderAdminPanel();
+          alert("Employee updated successfully!");
+        }).catch(() => alert("Employee could not be saved to cloud. Please try again."));
       }
 function deleteEmployee(id) {
   if (!confirm("Remove this employee?")) return;
@@ -4275,14 +4302,14 @@ function deleteEmployee(id) {
           return;
         }
         emp.currentProject = newProj;
-        saveToLocalStorage();
+        saveEmployeesToCloud();
       }
 
       function editEmpName(id, newName) {
         const emp = employees.find((e) => e.id === id);
         if (emp) {
           emp.name = newName;
-          saveToLocalStorage();
+          saveEmployeesToCloud();
         }
       }
 
