@@ -1658,10 +1658,16 @@
         showPage("page1");
       }
 
-      function logout() {
-        sessionStorage.clear();
-        hasInitializedApp = false;
-        window.location.reload();
+      async function logout() {
+        try {
+          await auth.signOut();
+        } catch (error) {
+          console.warn("Firebase sign-out failed:", error);
+        } finally {
+          sessionStorage.clear();
+          hasInitializedApp = false;
+          window.location.reload();
+        }
       }
 
       const defaultDailyRate = 1500;
