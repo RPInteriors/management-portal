@@ -1573,6 +1573,10 @@
       let employees = [];
       let expenseRecords = [];
       let materialRecords = [];
+      // Last cloud snapshot used to calculate only the employee records changed
+      // in this browser before committing. This prevents a stale tab from
+      // replacing newer employee records created/edited elsewhere.
+      let lastCloudEmployees = [];
       // --- MULTI-USER AUTH CONFIG ---
       const DEFAULT_USER_PROFILES = {
         CEO: "", Administrator: "", Supervisor: "",
@@ -1723,17 +1727,70 @@
       // --- STORAGE LOGIC ---
       function readEmployeeLocalBackup() { try { const raw=localStorage.getItem("RPI_employee_backup"); const parsed=raw?JSON.parse(raw):[]; return Array.isArray(parsed)&&parsed.length>0?sortEmployeesById(parsed):[]; } catch(error){ console.warn("RPI employee backup read failed:",error); return []; } }
       function writeEmployeeLocalBackup(employeeList) { if(!Array.isArray(employeeList)||employeeList.length===0)return; try{const safeList=sortEmployeesById(employeeList);localStorage.setItem("RPI_employee_backup",JSON.stringify(safeList));localStorage.setItem("RPI_employee_backup_time",new Date().toISOString());}catch(error){console.warn("RPI local employee backup failed:",error);} }
+      function employeeChanged(a, b) {
+        return JSON.stringify(a || null) !== JSON.stringify(b || null);
+      }
+
       function saveEmployeesToCloud() {
-        const list = Array.isArray(employees) ? sortEmployeesById(employees) : [];
-        if (!list.length) {
+        const localList = Array.isArray(employees) ? sortEmployeesById(employees) : [];
+        if (!localList.length) {
           console.warn("RPI protection: blocked empty employee save.");
           return Promise.resolve(false);
         }
-        employees = list;
-        writeEmployeeLocalBackup(list);
-        return database.ref("portalData/employees").transaction(() => list)
-          .then(result => result.committed)
-          .catch(error => { console.error("Employee Cloud Sync Error:", error); throw error; });
+
+        const baselineById = new Map(
+          (Array.isArray(lastCloudEmployees) ? lastCloudEmployees : [])
+            .filter((employee) => employee && employee.id != null)
+            .map((employee) => [String(employee.id), employee]),
+        );
+
+        const changedById = new Map(
+          localList
+            .filter((employee) => {
+              const id = String(employee?.id ?? "");
+              return id && (
+                !baselineById.has(id) ||
+                employeeChanged(employee, baselineById.get(id))
+              );
+            })
+            .map((employee) => [String(employee.id), employee]),
+        );
+
+        if (!changedById.size) {
+          employees = localList;
+          return Promise.resolve(true);
+        }
+
+        writeEmployeeLocalBackup(localList);
+
+        return database.ref("portalData/employees").transaction((currentEmployees) => {
+          const currentList = Array.isArray(currentEmployees)
+            ? currentEmployees.filter(Boolean)
+            : [];
+          const currentById = new Map(
+            currentList
+              .filter((employee) => employee && employee.id != null)
+              .map((employee) => [String(employee.id), employee]),
+          );
+
+          changedById.forEach((employee, id) => {
+            currentById.set(id, employee);
+          });
+
+          return sortEmployeesById([...currentById.values()]);
+        }).then((result) => {
+          if (!result.committed) return false;
+          const cloudList = Array.isArray(result.snapshot.val())
+            ? sortEmployeesById(result.snapshot.val())
+            : [];
+          employees = cloudList;
+          lastCloudEmployees = cloudList.map((employee) => ({ ...employee }));
+          writeEmployeeLocalBackup(cloudList);
+          return true;
+        }).catch((error) => {
+          console.error("Employee Cloud Sync Error:", error);
+          throw error;
+        });
       }
 
       function saveToLocalStorage() {
@@ -1753,7 +1810,27 @@
 
       function initCloudSync() {
         const employeeRef=database.ref("portalData/employees");
-        employeeRef.on("value",snapshot=>{const cloudEmployees=snapshot.val();if(Array.isArray(cloudEmployees)&&cloudEmployees.length>0){employees=sortEmployeesById(cloudEmployees);writeEmployeeLocalBackup(employees);}else{const backupEmployees=readEmployeeLocalBackup();if(backupEmployees.length>0){employees=backupEmployees;employeeRef.set(employees).catch(error=>console.error("RPI employee recovery write failed:",error));}else console.warn("RPI protection: no employee backup available; refusing empty overwrite.");}const activePage=Array.from(document.querySelectorAll(".page")).find(page=>page.style.display==="block")?.id;if(activePage==="page1")renderEmployeeList();if(activePage==="page4")renderAdminPanel();});
+        employeeRef.on("value",snapshot=>{
+          const cloudEmployees=snapshot.val();
+          if(Array.isArray(cloudEmployees)&&cloudEmployees.length>0){
+            employees=sortEmployeesById(cloudEmployees);
+            lastCloudEmployees=employees.map((employee)=>({...employee}));
+            writeEmployeeLocalBackup(employees);
+          }else{
+            const backupEmployees=readEmployeeLocalBackup();
+            if(backupEmployees.length>0){
+              employees=backupEmployees;
+              lastCloudEmployees=employees.map((employee)=>({...employee}));
+              employeeRef.set(employees).catch(error=>console.error("RPI employee recovery write failed:",error));
+            }else{
+              lastCloudEmployees=[];
+              console.warn("RPI protection: no employee backup available; refusing empty overwrite.");
+            }
+          }
+          const activePage=Array.from(document.querySelectorAll(".page")).find(page=>page.style.display==="block")?.id;
+          if(activePage==="page1")renderEmployeeList();
+          if(activePage==="page4")renderAdminPanel();
+        });
         database.ref("portalData").on("value",snapshot=>{const data=snapshot.val();if(!data)return;projects=data.projects||[];expenseRecords=data.expenseRecords||[];materialRecords=data.materialRecords||[];normalizeProjectsData();const activePage=Array.from(document.querySelectorAll(".page")).find(page=>page.style.display==="block")?.id;if(activePage==="page1")renderEmployeeList();if(activePage==="pageExpense")renderExpenses();if(activePage==="pageMaterials")renderMaterials();if(activePage==="page3")renderProjectDashboard();if(activePage==="page4")renderAdminPanel();});
       }
 
