@@ -1,8 +1,8 @@
 {
   "name": "Ram Prakash Interiors Management Portal",
   "short_name": "RPI Management",
-  "description": "Ram Prakash Interiors business management portal.",
-  "start_url": "./",
+  "description": "Ram Prakash Interiors business management portal — iPhone PWA.",
+  "start_url": "./?v=20260919.4",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
