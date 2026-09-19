@@ -1,0 +1,19 @@
+{
+  "name": "Ram Prakash Interiors Management Portal",
+  "short_name": "RPI Management",
+  "description": "Ram Prakash Interiors business management portal.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f7fb",
+  "theme_color": "#14213d",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
