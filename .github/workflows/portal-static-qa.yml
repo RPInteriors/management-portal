@@ -1,0 +1,78 @@
+name: Portal Static QA
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  static-qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Extract inline JavaScript
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          html = Path("index.html").read_text(encoding="utf-8")
+          scripts = []
+          for match in re.finditer(r"<script(?:\\s[^>]*)?>(.*?)</script>", html, re.S | re.I):
+              scripts.append(match.group(1))
+          Path("/tmp/rpi-inline.js").write_text("\\n;\\n".join(scripts), encoding="utf-8")
+          print(f"Extracted {len(scripts)} inline script blocks.")
+          PY
+
+      - name: JavaScript syntax check
+        run: node --check /tmp/rpi-inline.js
+
+      - name: HTML ID integrity check
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          html = Path("index.html").read_text(encoding="utf-8")
+          ids = re.findall(r'\\bid=["\\']([^"\\']+)["\\']', html)
+          duplicates = sorted({x for x in ids if ids.count(x) > 1})
+          if duplicates:
+              raise SystemExit("Duplicate HTML IDs: " + ", ".join(duplicates))
+
+          refs = set(re.findall(r'getElementById\\(["\\']([^"\\']+)["\\']\\)', html))
+          missing = sorted(x for x in refs if f'id="{x}"' not in html and f"id='{x}'" not in html)
+          if missing:
+              raise SystemExit("Missing getElementById targets: " + ", ".join(missing))
+
+          print(f"IDs: {len(ids)}; unique: {len(set(ids))}; getElementById targets: {len(refs)}")
+          PY
+
+      - name: PWA version consistency check
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          index = Path("index.html").read_text(encoding="utf-8")
+          manifest = Path("manifest.webmanifest").read_text(encoding="utf-8")
+          sw = Path("sw.js").read_text(encoding="utf-8")
+
+          m = re.search(r'RPI_PWA_BUILD\\s*=\\s*["\\']([^"\\']+)', index)
+          if not m:
+              raise SystemExit("RPI_PWA_BUILD missing from index.html")
+          build = m.group(1)
+
+          if build not in manifest:
+              raise SystemExit(f"Manifest does not reference build {build}")
+          if not re.search(r"rpi-management-v\\d+", sw):
+              raise SystemExit("Service-worker cache version missing")
+          print("PWA build:", build)
+          print("Service worker cache:", re.search(r"rpi-management-v\\d+", sw).group(0))
+          PY
