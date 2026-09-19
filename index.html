@@ -845,65 +845,15 @@
           style="display: none"
         >
           <p>
-            A 6-digit recovery OTP will be sent to the preset recovery email
-            for the selected role. Enter it in the highlighted OTP box below.
+            A secure Firebase password-reset link will be sent to the recovery email for the selected role.
           </p>
-          <label for="forgotPasswordOtp" class="otp-label">Email OTP</label>
-          <input
-            type="tel"
-            id="forgotPasswordOtp"
-            name="rpi-email-otp"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            autocomplete="one-time-code"
-            maxlength="6"
-            placeholder="Enter 6-digit OTP"
-            aria-label="Enter 6-digit email OTP"
-            autocapitalize="off"
-            spellcheck="false"
-          />
-          <div class="password-wrap">
-            <input
-              type="password"
-              id="forgotPasswordNew"
-              placeholder="Enter New Password"
-            />
-            <label class="show-pass-label">
-              <input
-                type="checkbox"
-                onchange="
-                  togglePasswordVisibility('forgotPasswordNew', this.checked)
-                "
-              />
-              Show
-            </label>
-          </div>
-          <div class="password-wrap">
-            <input
-              type="password"
-              id="forgotPasswordConfirm"
-              placeholder="Confirm New Password"
-            />
-            <label class="show-pass-label">
-              <input
-                type="checkbox"
-                onchange="
-                  togglePasswordVisibility(
-                    'forgotPasswordConfirm',
-                    this.checked,
-                  )
-                "
-              />
-              Show
-            </label>
-          </div>
-          <button
+                              <button
             class="btn-login"
             type="button"
             style="background: #2980b9; margin-top: 8px"
             onclick="sendForgotPasswordOtp(this)"
           >
-            Send Email OTP
+            Send Password Reset Link
           </button>
           <button
             class="btn-login"
@@ -911,7 +861,7 @@
             style="background: #8e44ad; margin-top: 10px"
             onclick="completeForgotPasswordReset()"
           >
-            Reset With OTP
+            Open Password Reset
           </button>
         </div>
         <p id="loginError" style="color: red; font-size: 0.8em; display: none">
@@ -2124,15 +2074,42 @@
       }
 
       async function completeForgotPasswordReset() {
+        const role = document.getElementById("userRole").value;
+        const recipientEmail = getPasswordResetRecipientEmail();
 
-        alert("This recovery path is disabled for security. Use the authenticated credential-change flow.");
+        if (!role || !recipientEmail) {
+          alert("Please select a role and ensure the recovery email is configured.");
+          return;
+        }
 
+        try {
+          await auth.sendPasswordResetEmail(getRoleEmail(role), {
+            url: window.location.origin + window.location.pathname,
+            handleCodeInApp: false,
+          });
+          alert("Password reset link sent. Check the recovery email and follow the Firebase reset link.");
+        } catch (error) {
+          console.error("Password reset email error:", error);
+          alert(error.message || "Unable to send the password reset email.");
+        }
       }
 
       async function resetUserPasswordWithoutOldPassword() {
-
-        alert("This recovery path is disabled for security. Use the authenticated credential-change flow.");
-
+        const role = document.getElementById("resetUserRole").value;
+        if (!role) {
+          alert("Please select a role first.");
+          return;
+        }
+        try {
+          await auth.sendPasswordResetEmail(getRoleEmail(role), {
+            url: window.location.origin + window.location.pathname,
+            handleCodeInApp: false,
+          });
+          alert("Secure password reset link sent to the configured recovery email.");
+        } catch (error) {
+          console.error("Admin password reset email error:", error);
+          alert(error.message || "Unable to send the password reset email.");
+        }
       }
 
       async function resetUserPassword() {
