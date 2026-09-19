@@ -64,15 +64,17 @@ jobs:
           manifest = Path("manifest.webmanifest").read_text(encoding="utf-8")
           sw = Path("sw.js").read_text(encoding="utf-8")
 
-          m = re.search(r"RPI_PWA_BUILD\\s*=\\s*[\"']([^\"']+)", index)
-          if not m:
+          marker = 'const RPI_PWA_BUILD = "'
+          if marker not in index:
               raise SystemExit("RPI_PWA_BUILD missing from index.html")
-          build = m.group(1)
+          build = index.split(marker, 1)[1].split('"', 1)[0]
 
           if build not in manifest:
               raise SystemExit(f"Manifest does not reference build {build}")
-          if not re.search(r"rpi-management-v\\d+", sw):
+          sw_marker = "const CACHE_NAME = '"
+          if sw_marker not in sw or "rpi-management-" not in sw:
               raise SystemExit("Service-worker cache version missing")
+          cache_name = sw.split(sw_marker, 1)[1].split("'", 1)[0]
           print("PWA build:", build)
-          print("Service worker cache:", re.search(r"rpi-management-v\\d+", sw).group(0))
+          print("Service worker cache:", cache_name)
           PY
