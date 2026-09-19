@@ -692,6 +692,74 @@
       .payment-row select {
         margin: 0;
       }
+    
+      /* ===== PREMIUM MANAGEMENT PORTAL UI ===== */
+      :root{
+        --ink:#14213d; --ink2:#1f3156; --gold:#c9a227; --gold2:#e7c65c;
+        --bg:#f5f7fb; --card:#ffffff; --muted:#6b7280; --line:#e5e9f0;
+        --shadow:0 12px 35px rgba(20,33,61,.08);
+      }
+      html{scroll-behavior:smooth}
+      body{background:linear-gradient(180deg,#f7f9fc 0%,#eef2f7 100%);padding:18px;max-width:1500px;margin:auto}
+      #mainAppContent{max-width:1450px;margin:auto}
+      .header-title{
+        margin:6px 0 18px!important;color:var(--ink)!important;letter-spacing:4px!important;
+        font-size:clamp(1.45rem,3vw,2.35rem)!important;text-shadow:none!important;
+      }
+      nav{
+        position:sticky;top:10px;z-index:100;background:rgba(20,33,61,.96)!important;
+        backdrop-filter:blur(12px);padding:10px!important;border-radius:16px!important;
+        box-shadow:0 14px 35px rgba(20,33,61,.18);justify-content:flex-start!important;
+      }
+      nav button{background:transparent!important;border:1px solid rgba(255,255,255,.10)!important;
+        padding:11px 15px!important;border-radius:10px!important;font-size:.88rem}
+      nav button:hover{background:rgba(201,162,39,.18)!important;color:#fff}
+      nav button:first-child{border-color:rgba(201,162,39,.55)!important}
+      .logout-nav{margin-left:auto;background:#8f2d2d!important}
+      .page{
+        border:1px solid var(--line);border-radius:18px!important;padding:clamp(15px,2vw,28px)!important;
+        box-shadow:var(--shadow)!important;min-height:420px!important
+      }
+      h1,h2{color:var(--ink)!important;border-bottom:1px solid var(--line)!important}
+      table{border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#fff}
+      th{background:var(--ink)!important;padding:13px 11px!important;font-size:.82rem;letter-spacing:.02em}
+      td{border-color:var(--line)!important;padding:11px!important;font-size:.9rem}
+      tr:nth-child(even){background:#fafbfd}
+      .project-grid{gap:16px!important}
+      .project-box,.admin-form{
+        border:1px solid var(--line)!important;border-radius:16px!important;
+        box-shadow:0 8px 25px rgba(20,33,61,.06)!important
+      }
+      .project-box{border-top:4px solid var(--gold)!important;padding:20px!important}
+      .box-upcoming{border-top-color:#e09b2d!important}.box-completed{border-top-color:#64748b!important}
+      .admin-form{background:#fbfcfe!important}
+      .admin-form input,.admin-form select{min-height:42px;border:1px solid #d9dee8!important;border-radius:9px!important}
+      .btn-add,.btn-pdf,.btn-status,.btn-edit,.btn-entry,.btn-print{border-radius:9px!important}
+      .btn-add{background:var(--ink)!important}.btn-add:hover{background:var(--ink2)!important}
+      .btn-pdf{background:#9f7b13!important}.btn-pdf:hover{background:#7e620e!important}
+      #globalAuthOverlay{background:radial-gradient(circle at top,#263d67 0%,#0c1425 65%,#070b14 100%)!important}
+      .auth-card{width:min(390px,calc(100vw - 36px));padding:34px!important;border-radius:22px!important;
+        box-shadow:0 25px 70px rgba(0,0,0,.35)!important}
+      .auth-card h2{border:0!important;font-size:1.55rem;margin-bottom:18px;color:var(--ink)!important}
+      .auth-card select,.auth-card input{min-height:46px;border-radius:10px!important;border-color:#d8dee8!important}
+      .btn-login{background:var(--ink)!important;border-radius:10px!important}
+      .btn-login:hover{background:#263d67!important}
+      .portal-kicker{font-size:.75rem;font-weight:800;letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
+      .portal-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 18px}
+      .portal-stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:0 7px 22px rgba(20,33,61,.05)}
+      .portal-stat b{display:block;font-size:1.35rem;color:var(--ink)} .portal-stat span{font-size:.76rem;color:var(--muted);font-weight:600}
+      @media(max-width:760px){
+        body{padding:9px}.header-title{letter-spacing:2px!important}
+        nav{top:5px;overflow-x:auto;flex-wrap:nowrap!important;justify-content:flex-start!important}
+        nav button{white-space:nowrap}.logout-nav{margin-left:0}
+        .portal-stats{grid-template-columns:repeat(2,1fr)}
+        .page{padding:14px!important;overflow:hidden}
+        table{display:block;overflow-x:auto;white-space:nowrap}
+        .project-grid{grid-template-columns:1fr!important}
+        .admin-form input,.admin-form select{width:100%;box-sizing:border-box;margin:5px 0}
+      }
+      @media(max-width:420px){.portal-stats{gap:8px}.portal-stat{padding:12px}.portal-stat b{font-size:1.15rem}}
+
     </style>
   </head>
 
@@ -808,6 +876,15 @@
     </div>
     <div id="mainAppContent">
       <h1 class="header-title">RAM PRAKASH INTERIORS</h1>
+
+      
+      <div class="portal-kicker">Interior • Fit-Out • Turnkey Solutions</div>
+      <div class="portal-stats" aria-label="Portal summary">
+        <div class="portal-stat"><b id="statProjects">0</b><span>Total Projects</span></div>
+        <div class="portal-stat"><b id="statRunning">0</b><span>Running</span></div>
+        <div class="portal-stat"><b id="statEmployees">0</b><span>Employees</span></div>
+        <div class="portal-stat"><b id="statMaterials">0</b><span>Material Entries</span></div>
+      </div>
 
       <nav>
         <button onclick="showPage('page1')">Daily Attendance</button>
@@ -1976,12 +2053,20 @@
       }
 
       // --- NAVIGATION ---
-      function showPage(pageId) {
-        document
-          .querySelectorAll(".page")
-          .forEach((p) => (p.style.display = "none"));
-        document.getElementById(pageId).style.display = "block";
+      function updatePortalStats() {
+        const el = (id) => document.getElementById(id);
+        if (!el("statProjects")) return;
+        const list = Array.isArray(projects) ? projects : [];
+        el("statProjects").textContent = list.length;
+        el("statRunning").textContent = list.filter(p => p && p.status === "running").length;
+        el("statEmployees").textContent = Array.isArray(employees) ? employees.length : 0;
+        el("statMaterials").textContent = Array.isArray(materialRecords) ? materialRecords.length : 0;
+      }
 
+      function showPage(pageId) {
+        document.querySelectorAll(".page").forEach((p) => (p.style.display = "none"));
+        document.getElementById(pageId).style.display = "block";
+        updatePortalStats();
         if (pageId === "page1") renderEmployeeList();
         if (pageId === "pageExpense") renderExpenses();
         if (pageId === "pageMaterials") renderMaterials();
