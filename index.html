@@ -1554,25 +1554,14 @@
 
       async function verifyRolePasswordInFirebaseAuth(role, password) {
         const email = getRoleEmail(role);
-        if (!email || !password) {
-          return false;
-        }
-
-        const secondaryAppName = `rp-auth-verify-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const secondaryApp = firebase.initializeApp(
-          firebaseConfig,
-          secondaryAppName,
-        );
+        if (!email || !password) return false;
 
         try {
-          const secondaryAuth = secondaryApp.auth();
-          await secondaryAuth.signInWithEmailAndPassword(email, password);
-          await secondaryAuth.signOut();
+          await auth.signInWithEmailAndPassword(email, password);
           return true;
         } catch (error) {
+          console.warn("Firebase authentication failed:", error);
           return false;
-        } finally {
-          await secondaryApp.delete().catch(() => {});
         }
       }
 
