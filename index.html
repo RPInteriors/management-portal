@@ -2070,10 +2070,7 @@
         }
 
         try {
-          await auth.sendPasswordResetEmail(getRoleEmail(role), {
-            url: window.location.origin + window.location.pathname,
-            handleCodeInApp: false,
-          });
+          await auth.sendPasswordResetEmail(getRoleEmail(role));
           alert("Password reset link sent. Check the recovery email and follow the Firebase reset link.");
         } catch (error) {
           console.error("Password reset email error:", error);
@@ -2088,10 +2085,7 @@
           return;
         }
         try {
-          await auth.sendPasswordResetEmail(getRoleEmail(role), {
-            url: window.location.origin + window.location.pathname,
-            handleCodeInApp: false,
-          });
+          await auth.sendPasswordResetEmail(getRoleEmail(role));
           alert("Secure password reset link sent to the configured recovery email.");
         } catch (error) {
           console.error("Admin password reset email error:", error);
@@ -4445,6 +4439,16 @@ function deleteEmployee(id) {
 
         doc.save(`Materials_Report_${filter}.pdf`);
       }
+
+      auth.onAuthStateChanged((user) => {
+        if (!user || hasInitializedApp) return;
+        const savedRole = sessionStorage.getItem("rp_auth_role");
+        const role = getCurrentSignedInRole();
+        if (savedRole && role && savedRole === role) {
+          currentUserRole = role;
+          initApplication();
+        }
+      });
 
       window.onload = () => {
         initUserProfilesSync();
