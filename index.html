@@ -820,8 +820,14 @@
           style="display: none"
         >
           <p>
-            A secure Firebase password-reset link will be sent to the recovery email for the selected role.
+            Enter the email address registered in Firebase Authentication for the selected role.
           </p>
+          <input
+            type="email"
+            id="forgotPasswordEmail"
+            placeholder="Registered Firebase email address"
+            autocomplete="email"
+          />
           <button
             class="btn-login"
             type="button"
@@ -1218,8 +1224,15 @@
             style="display: none; margin-top: 12px"
           >
             <p style="margin: 0 0 10px; color: #5d6d7e; font-size: 0.9em">
-              A secure Firebase password-reset email will be sent to the selected role's registered email address.
+              Enter the Firebase Authentication email registered for this user.
             </p>
+            <input
+              type="email"
+              id="adminResetEmail"
+              placeholder="Registered Firebase email address"
+              autocomplete="email"
+              style="width:100%;box-sizing:border-box;margin:0 0 10px"
+            />
             <button
               class="btn-add"
               type="button"
@@ -1909,34 +1922,45 @@
 
       async function completeForgotPasswordReset() {
         const role = document.getElementById("userRole").value;
-        const recipientEmail = getPasswordResetRecipientEmail();
+        const emailInput = document.getElementById("forgotPasswordEmail");
+        const email = String(emailInput?.value || getRoleEmail(role) || "").trim();
 
-        if (!role || !recipientEmail) {
-          alert("Please select a role and ensure the recovery email is configured.");
+        if (!email) {
+          alert("Please enter the Firebase Authentication email registered for this account.");
           return;
         }
 
         try {
-          await auth.sendPasswordResetEmail(getRoleEmail(role));
-          alert("Password reset link sent. Check the recovery email and follow the Firebase reset link.");
+          await auth.sendPasswordResetEmail(email);
+          if (emailInput) emailInput.value = "";
+          alert("Password reset link sent. Check the registered Firebase email and follow the reset link.");
         } catch (error) {
           console.error("Password reset email error:", error);
-          alert(error.message || "Unable to send the password reset email.");
+          alert(error.code === "auth/invalid-email"
+            ? "Please enter a valid email address."
+            : "Unable to send the password reset email. Confirm that this email belongs to a Firebase Authentication account.");
         }
       }
 
       async function resetUserPasswordWithoutOldPassword() {
         const role = document.getElementById("resetUserRole").value;
-        if (!role) {
-          alert("Please select a role first.");
+        const emailInput = document.getElementById("adminResetEmail");
+        const email = String(emailInput?.value || getRoleEmail(role) || "").trim();
+
+        if (!email) {
+          alert("Enter the Firebase Authentication email registered for this user.");
           return;
         }
+
         try {
-          await auth.sendPasswordResetEmail(getRoleEmail(role));
-          alert("Secure password reset link sent to the configured recovery email.");
+          await auth.sendPasswordResetEmail(email);
+          if (emailInput) emailInput.value = "";
+          alert("Secure password reset link sent to the registered Firebase email.");
         } catch (error) {
           console.error("Admin password reset email error:", error);
-          alert(error.message || "Unable to send the password reset email.");
+          alert(error.code === "auth/invalid-email"
+            ? "Please enter a valid email address."
+            : "Unable to send the password reset email. Confirm that this email belongs to a Firebase Authentication account.");
         }
       }
 
@@ -2480,7 +2504,7 @@
         employees.forEach((emp) => calculateDayAndWage(emp.id));
       }
 
-      function saveAttendance() {
+      async function saveAttendance() {
         const today = new Date().toDateString();
 
         employees.forEach((emp) => {
@@ -2511,7 +2535,13 @@
         });
 
         // Sync employee records only; never overwrite employees from a generic portal save.
-        saveEmployeesToCloud();
+        try {
+          await saveEmployeesToCloud();
+        } catch (error) {
+          alert("Attendance could not be saved to the cloud. Please try again.");
+          console.error("Attendance cloud save failed:", error);
+          return;
+        }
 
         alert("Attendance Saved and Locked!");
 
@@ -2675,7 +2705,7 @@
         document.getElementById("personalPortalContent").innerHTML = content;
         showPage("page2");
       }
-      function addPayment(empId, month) {
+      async function addPayment(empId, month) {
         const date = document.getElementById("payDate").value;
         const amt = document.getElementById("payAmt").value;
         const mode = document.getElementById("payMode").value;
@@ -2694,7 +2724,13 @@
           amount: parseInt(amt),
           mode: mode,
         });
-        saveEmployeesToCloud();
+        try {
+          await saveEmployeesToCloud();
+        } catch (error) {
+          alert("Payment could not be saved to the cloud. Please try again.");
+          console.error("Payment cloud save failed:", error);
+          return;
+        }
         viewEmployee(empId, month);
       }
 
@@ -3224,7 +3260,7 @@
         document.getElementById("projectCancelBtn").style.display = "none";
       }
 
-      function updateProjectData() {
+      async function updateProjectData() {
         const originalName = document.getElementById(
           "editProjectOriginalName",
         ).value;
@@ -3262,14 +3298,20 @@
           });
         }
 
-        saveToLocalStorage();
+        try {
+          await saveToLocalStorage();
+        } catch (error) {
+          alert("Project could not be saved to the cloud. Please try again.");
+          console.error("Project update cloud save failed:", error);
+          return;
+        }
         cancelProjectEdit();
         renderAdminPanel();
         renderProjectDashboard();
         alert("Project updated successfully!");
       }
 
-      function addProject() {
+      async function addProject() {
         const invoice = document.getElementById("newProjInvoice").value.trim();
         const company = document.getElementById("newProjCompany").value.trim();
         const name = document.getElementById("newProjectName").value.trim();
@@ -3306,8 +3348,14 @@
           document.getElementById("newProjReceived").value = "";
           seedProjectPaymentForm();
 
-          saveToLocalStorage();
-          saveEmployeesToCloud();
+          try {
+            await saveToLocalStorage();
+            await saveEmployeesToCloud();
+          } catch (error) {
+            alert("Project could not be saved to the cloud. Please try again.");
+            console.error("Project creation cloud save failed:", error);
+            return;
+          }
           renderAdminPanel();
           renderProjectDashboard();
         } else {
@@ -3882,20 +3930,26 @@ function deleteEmployee(id) {
         tfoot.innerHTML = `<tr><td style="font-weight:bold;">TOTALS</td><td>₹${totalCEO}</td><td>₹${totalSup}</td><td>₹${totalAdmin}</td><td></td></tr>`;
       }
 
-      function saveAndLockExpense(idx, lockField) {
+      async function saveAndLockExpense(idx, lockField) {
         if (
           confirm(
             "Are you sure? Once saved, your column for this row will be locked.",
           )
         ) {
           expenseRecords[idx][lockField] = true;
-          saveToLocalStorage(); // Firebase Sync
+          try {
+            await saveToLocalStorage();
+          } catch (error) {
+            alert("Expense could not be saved to the cloud. Please try again.");
+            console.error("Expense lock cloud save failed:", error);
+            return;
+          }
           renderExpenses();
           alert("Your entry has been saved and locked.");
         }
       }
 
-      function addExpenseRow() {
+      async function addExpenseRow() {
         const today = new Date().toISOString().split("T")[0];
         expenseRecords.push({
           date: today,
@@ -3909,19 +3963,19 @@ function deleteEmployee(id) {
           admRec: "",
           admLocked: false,
         });
-        saveToLocalStorage();
+        try { await saveToLocalStorage(); } catch (error) { alert("Expense could not be saved to the cloud. Please try again."); console.error(error); return; }
         renderExpenses();
       }
 
-      function updateExpense(idx, field, val) {
+      async function updateExpense(idx, field, val) {
         expenseRecords[idx][field] = val;
-        saveToLocalStorage();
+        try { await saveToLocalStorage(); } catch (error) { console.error("Expense update cloud save failed:", error); alert("Expense could not be saved to the cloud."); }
       }
 
-      function deleteExpense(idx) {
+      async function deleteExpense(idx) {
         if (confirm("Delete this expense entry?")) {
           expenseRecords.splice(idx, 1);
-          saveToLocalStorage();
+          try { await saveToLocalStorage(); } catch (error) { alert("Expense could not be deleted from the cloud. Please try again."); console.error(error); return; }
           renderExpenses();
         }
       }
@@ -4060,7 +4114,7 @@ function deleteEmployee(id) {
         tfoot.innerHTML = `<tr><td colspan="6" style="text-align:right">PAGE TOTAL</td><td>₹${totalAmt.toLocaleString()}</td><td colspan="2"></td></tr>`;
       }
 
-      function addMaterialRow() {
+      async function addMaterialRow() {
         const today = new Date().toISOString().split("T")[0];
         materialRecords.push({
           date: today,
@@ -4073,18 +4127,18 @@ function deleteEmployee(id) {
           bill: null,
           locked: false, // New field to handle the lock state
         });
-        saveToLocalStorage();
+        try { await saveToLocalStorage(); } catch (error) { alert("Material entry could not be saved to the cloud. Please try again."); console.error(error); return; }
         renderMaterials();
       }
 
-      function updateMaterial(idx, field, val) {
+      async function updateMaterial(idx, field, val) {
         materialRecords[idx][field] = val;
-        saveToLocalStorage();
+        try { await saveToLocalStorage(); } catch (error) { console.error("Material update cloud save failed:", error); alert("Material entry could not be saved to the cloud."); }
       }
 
-      function saveAndLockMaterial(idx) {
+      async function saveAndLockMaterial(idx) {
         materialRecords[idx].locked = true;
-        saveToLocalStorage();
+        try { await saveToLocalStorage(); } catch (error) { alert("Material row could not be saved to the cloud. Please try again."); console.error(error); return; }
         renderMaterials();
         alert("Row locked and details saved.");
       }
@@ -4098,16 +4152,16 @@ function deleteEmployee(id) {
             materialRecords[idx].bill = reader.result;
             materialRecords[idx].billName = file.name || "bill";
             materialRecords[idx].billType = file.type || "";
-            saveToLocalStorage();
+            saveToLocalStorage().catch(error => { console.error("Material bill cloud save failed:", error); alert("Bill could not be saved to the cloud. Please try again."); });
             renderMaterials();
           };
         }
       }
 
-      function deleteMaterial(idx) {
+      async function deleteMaterial(idx) {
         if (confirm("Delete this material record?")) {
           materialRecords.splice(idx, 1);
-          saveToLocalStorage();
+          try { await saveToLocalStorage(); } catch (error) { alert("Material could not be deleted from the cloud. Please try again."); console.error(error); return; }
           renderMaterials();
         }
       }
